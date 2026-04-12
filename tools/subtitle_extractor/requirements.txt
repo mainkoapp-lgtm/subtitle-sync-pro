@@ -1,0 +1,10 @@
+# SubFast Extractor 의존성
+# tkinter는 Python 표준 라이브러리에 포함
+# FFmpeg는 별도 설치 필요 (https://ffmpeg.org)
+
+# 기능 구현용
+requests>=2.31.0
+Pillow>=10.0.0
+
+# 빌드/패키징용
+pyinstaller>=6.0

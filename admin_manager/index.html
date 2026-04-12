@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subtitle Sync Pro - Premium Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;800&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030712;
+            --glass-bg: rgba(17, 24, 39, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent-glow: rgba(99, 102, 241, 0.5);
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-color); 
+            color: #f8fafc; 
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(ellipse at 10% 20%, rgba(79, 70, 229, 0.15) 0%, transparent 40%),
+                radial-gradient(ellipse at 90% 80%, rgba(236, 72, 153, 0.15) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; font-weight: 700; }
+        .glass { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(16px); 
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border); 
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+        .stat-card-glass {
+            background: linear-gradient(145deg, rgba(31, 41, 55, 0.6) 0%, rgba(17, 24, 39, 0.8) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+        }
+        .stat-card-glass:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.2);
+        }
+        .tag-direct { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
+        .tag-naver { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .tag-google { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+        .tag-kakao { background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); }
+        .tag-referral { background: rgba(236, 72, 153, 0.1); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.2); }
+        .gradient-text {
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .bar-fill { transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+    <div id="app" class="max-w-6xl mx-auto">
+        <!-- Login Section -->
+        <div id="login-section" class="flex items-center justify-center min-h-[80vh] relative z-10">
+            <div class="absolute inset-0 z-[-1] flex items-center justify-center opacity-30 pointer-events-none">
+                <div class="w-[500px] h-[500px] bg-indigo-500 rounded-full blur-[120px] mix-blend-screen animate-pulse"></div>
+            </div>
+            <div class="glass p-10 rounded-3xl w-full max-w-md shadow-2xl border-t border-white/10 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-bl-full blur-2xl"></div>
+                <div class="text-center mb-8 relative z-10">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-6 shadow-lg shadow-indigo-500/30 text-white">
+                        <i data-lucide="shield-check" class="w-8 h-8"></i>
+                    </div>
+                    <h1 class="text-3xl font-extrabold tracking-tight">Admin Manager</h1>
+                    <p class="text-slate-400 text-sm mt-3 font-medium">관리자 전용 비밀 보안 터널</p>
+                </div>
+                <div class="space-y-5 relative z-10">
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i data-lucide="key" class="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors"></i>
+                        </div>
+                        <input type="password" id="admin-key" placeholder="Enter Secret Key" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl pl-12 pr-4 py-4 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all font-mono tracking-widest placeholder:tracking-normal backdrop-blur-sm text-lg">
+                    </div>
+                    <button onclick="handleLogin()" class="w-full relative group overflow-hidden bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-4 rounded-xl transition-all active:scale-[0.98]">
+                        <div class="absolute inset-0 w-1/4 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                        <span class="flex items-center justify-center gap-2">
+                            <i data-lucide="unlock" class="w-5 h-5"></i> 인증 및 접속
+                        </span>
+                    </button>
+                    <p id="error-msg" class="text-rose-400 text-sm pl-2 mt-2 hidden flex items-center gap-2 bg-rose-500/10 p-3 rounded-lg border border-rose-500/20">
+                        <i data-lucide="alert-circle" class="w-4 h-4"></i> 인증키가 올바르지 않습니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Section (Hidden by default) -->
+        <div id="dashboard-section" class="hidden animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">
+            <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 relative z-10 pt-4">
+                <div class="relative">
+                    <div class="absolute -left-6 -top-6 w-24 h-24 bg-blue-500/30 rounded-full blur-2xl -z-10"></div>
+                    <h1 class="text-4xl font-extrabold flex items-center gap-4 tracking-tight drop-shadow-sm">
+                        <span class="bg-gradient-to-br from-indigo-500 to-purple-500 p-2.5 rounded-xl shadow-lg shadow-indigo-500/30 text-white flex">
+                            <i data-lucide="bar-chart-2" class="w-7 h-7"></i>
+                        </span>
+                        <span class="gradient-text">Live Analytics</span>
+                    </h1>
+                    <p class="text-slate-400 mt-2 text-sm md:text-base ml-[3.5rem] font-medium tracking-wide">실시간 방문자 수집 및 통계 리포트 허브</p>
+                </div>
+                <div class="flex gap-3 xs:w-full md:w-auto">
+                    <button onclick="fetchData()" class="glass flex-1 md:flex-none px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95 text-sm font-semibold border-white/10 hover:border-indigo-500/50">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 text-indigo-400" id="refresh-icon"></i> <span class="hidden sm:inline">데이터 새로고침</span>
+                    </button>
+                    <button onclick="logout()" class="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-6 py-2.5 rounded-xl hover:bg-rose-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 font-semibold text-sm">
+                        <i data-lucide="log-out" class="w-4 h-4"></i> <span class="hidden sm:inline">안전 종료</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 relative z-10">
+                <div class="stat-card-glass p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all"></div>
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2.5 bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/20">
+                                <i data-lucide="users" class="w-5 h-5"></i>
+                            </div>
+                            <p class="text-slate-300 text-sm font-bold tracking-widest uppercase">Unique Visitors</p>
+                        </div>
+                    </div>
+                    <p class="text-5xl font-black tracking-tight" id="stat-uv">0</p>
+                    <p class="text-sm font-medium text-indigo-300 mt-3 flex items-center gap-1.5"><i data-lucide="fingerprint" class="w-4 h-4"></i> 중복 제외 순 방문자</p>
+                </div>
+                
+                <div class="stat-card-glass p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/20">
+                                <i data-lucide="activity" class="w-5 h-5"></i>
+                            </div>
+                            <p class="text-slate-300 text-sm font-bold tracking-widest uppercase">Total Sessions</p>
+                        </div>
+                    </div>
+                    <p class="text-5xl font-black tracking-tight" id="stat-sessions">0</p>
+                    <p class="text-sm font-medium text-emerald-300 mt-3 flex items-center gap-1.5"><i data-lucide="mouse-pointer-click" class="w-4 h-4"></i> 전체 페이지 접속 뷰</p>
+                </div>
+                
+                <div class="stat-card-glass p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all"></div>
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/20">
+                                <i data-lucide="globe" class="w-5 h-5"></i>
+                            </div>
+                            <p class="text-slate-300 text-sm font-bold tracking-widest uppercase">Global Reach</p>
+                        </div>
+                    </div>
+                    <p class="text-5xl font-black tracking-tight" id="stat-nations">0</p>
+                    <p class="text-sm font-medium text-amber-300 mt-3 flex items-center gap-1.5"><i data-lucide="map" class="w-4 h-4"></i> 접속 국가 네트워크 수</p>
+                </div>
+            </div>
+
+            <!-- Analytics Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+                <!-- Traffic Source Chart -->
+                <div class="glass p-8 rounded-[2rem] lg:col-span-8 shadow-xl flex flex-col h-[400px]">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-extrabold flex items-center gap-3">
+                            <span class="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg"><i data-lucide="trending-up" class="w-5 h-5"></i></span>
+                            트래픽 유입 소스 (Top Sources)
+                        </h3>
+                    </div>
+                    <div class="relative w-full flex-1">
+                        <canvas id="sourceChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Country Distribution -->
+                <div class="glass p-8 rounded-[2rem] lg:col-span-4 shadow-xl flex flex-col h-[400px]">
+                    <h3 class="text-xl font-extrabold flex items-center gap-3 mb-6">
+                        <span class="p-2 bg-amber-500/20 text-amber-400 rounded-lg"><i data-lucide="map-pin" class="w-5 h-5"></i></span>
+                        국가별 접속 분포
+                    </h3>
+                    <div class="relative w-full flex-1 flex items-center justify-center">
+                        <canvas id="countryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Logs Table -->
+            <div class="glass rounded-[2rem] overflow-hidden mb-10 shadow-xl border border-white/10">
+                <div class="p-8 border-b border-white/5 bg-slate-900/40 flex justify-between items-center">
+                    <h3 class="text-xl font-extrabold flex items-center gap-3">
+                        <span class="p-2 bg-rose-500/20 text-rose-400 rounded-lg"><i data-lucide="historian" class="w-5 h-5"></i></span>
+                        실시간 상세 유입 로그 <span class="bg-indigo-500/20 text-indigo-300 text-xs py-1 px-3 rounded-full ml-2 font-semibold">Latest 15</span>
+                    </h3>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-black/20 text-slate-400 text-xs uppercase tracking-widest font-semibold">
+                            <tr>
+                                <th class="p-5 px-8">접속 일시 (KST)</th>
+                                <th class="p-5">접속 국가 (IP Base)</th>
+                                <th class="p-5">디바이스</th>
+                                <th class="p-5">분류 라벨</th>
+                                <th class="p-5 px-8">Referrer URI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-table-body" class="divide-y divide-white/5 bg-transparent">
+                            <!-- Rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-4 bg-black/20 text-center border-t border-white/5">
+                    <p class="text-xs text-slate-500 font-medium">관리자 전용 대시보드 - 허용되지 않은 접근 시 강력히 차단됩니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let apiSecret = '';
+        const API_URL = 'http://localhost:8000/admin/traffic';
+
+        function handleLogin() {
+            const keyInput = document.getElementById('admin-key').value;
+            if (!keyInput) return;
+            
+            apiSecret = keyInput;
+            fetchData();
+        }
+
+        async function fetchData() {
+            const refreshIcon = document.getElementById('refresh-icon');
+            refreshIcon.classList.add('animate-spin');
+
+            try {
+                const res = await axios.get(API_URL, {
+                    headers: { 'X-Admin-Key': apiSecret }
+                });
+
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                document.getElementById('error-msg').classList.add('hidden');
+                
+                renderDashboard(res.data);
+            } catch (e) {
+                console.error(e);
+                if (e.response && e.response.status === 403) {
+                    document.getElementById('error-msg').classList.remove('hidden');
+                } else {
+                    alert('서버 연결 실패 (백엔드 서버가 실행 중인지 확인하세요)');
+                }
+            } finally {
+                setTimeout(() => refreshIcon.classList.remove('animate-spin'), 500);
+            }
+        }
+
+        // Chart Instances
+        let sourceChartInstance = null;
+        let countryChartInstance = null;
+
+        // Custom Tailwind Config for ChartJS
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        function renderDashboard(logs) {
+            const uv = new Set(logs.map(l => l.visitorId)).size;
+            
+            // Value Animations
+            animateValue("stat-uv", 0, uv, 1000);
+            animateValue("stat-sessions", 0, logs.length, 1000);
+            
+            const nations = logs.reduce((acc, log) => {
+                acc[log.country] = (acc[log.country] || 0) + 1;
+                return acc;
+            }, {});
+            animateValue("stat-nations", 0, Object.keys(nations).length, 1000);
+
+            const sources = logs.reduce((acc, log) => {
+                const src = log.source === 'direct' ? 'Direct/Unknown' : log.source;
+                acc[src] = (acc[src] || 0) + 1;
+                return acc;
+            }, {});
+
+            renderCharts(sources, nations);
+
+            // Render Table
+            const tableBody = document.getElementById('log-table-body');
+            tableBody.innerHTML = '';
+            logs.slice(0, 15).forEach(log => {
+                const dateObj = new Date(log.timestamp);
+                const tagClass = `tag-${log.source.toLowerCase()}`;
+                
+                // Add Country flag emoji heuristic (for UI polish only)
+                let flag = '🏳️';
+                if(log.country.includes('Korea')) flag = '🇰🇷';
+                else if(log.country.includes('Japan')) flag = '🇯🇵';
+                else if(log.country.includes('United States') || log.country.includes('US')) flag = '🇺🇸';
+                else if(log.country.includes('China')) flag = '🇨🇳';
+                else if(log.country.includes('India')) flag = '🇮🇳';
+                else if(log.country.includes('Unknown')) flag = '🌍';
+                
+                tableBody.innerHTML += `
+                    <tr class="hover:bg-white/5 transition-colors group cursor-default">
+                        <td class="p-5 px-8 text-slate-300 font-mono text-xs group-hover:text-white transition-colors">
+                            ${dateObj.toLocaleDateString()} <span class="text-slate-500 ml-1">${dateObj.toLocaleTimeString('en-US', {hour12:false})}</span>
+                        </td>
+                        <td class="p-5 font-bold text-slate-200 flex items-center gap-2">
+                            <span>${flag}</span> ${log.country}
+                        </td>
+                        <td class="p-5">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="${log.device.toLowerCase() === 'mobile' ? 'smartphone' : 'monitor'}" class="w-4 h-4 text-slate-400"></i>
+                                <span class="text-sm font-medium ${log.device.toLowerCase() === 'mobile' ? 'text-teal-400' : 'text-blue-400'}">${log.device}</span>
+                            </div>
+                        </td>
+                        <td class="p-5">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${tagClass}">
+                                <div class="w-1.5 h-1.5 rounded-full bg-current"></div>
+                                ${log.source}
+                            </span>
+                        </td>
+                        <td class="p-5 px-8 text-slate-400 truncate max-w-[250px] font-mono text-xs group-hover:text-slate-200 transition-colors" title="${log.referrer}">
+                            ${log.referrer === 'direct' ? '-' : log.referrer}
+                        </td>
+                    </tr>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        function renderCharts(sources, nations) {
+            // Source Bar Chart
+            const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+            const sourceDataRaw = Object.entries(sources).sort((a,b) => b[1]-a[1]).slice(0, 6);
+            
+            if (sourceChartInstance) sourceChartInstance.destroy();
+            sourceChartInstance = new Chart(sourceCtx, {
+                type: 'bar',
+                data: {
+                    labels: sourceDataRaw.map(d => d[0].toUpperCase()),
+                    datasets: [{
+                        label: '방문 수',
+                        data: sourceDataRaw.map(d => d[1]),
+                        backgroundColor: (context) => {
+                            const ctx = context.chart.ctx;
+                            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.8)');
+                            gradient.addColorStop(1, 'rgba(168, 85, 247, 0.4)');
+                            return gradient;
+                        },
+                        borderRadius: 8,
+                        borderSkipped: false,
+                        barThickness: 'flex',
+                        maxBarThickness: 45
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleFont: { size: 14, family: "'Outfit', sans-serif" },
+                        padding: 12, cornerRadius: 8, borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1
+                    } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false }, ticks: { font: {family: "'Outfit', sans-serif", weight: '600'} } },
+                        x: { grid: { display: false }, border: { display: false }, ticks: { font: {family: "'Outfit', sans-serif", weight: '600'} } }
+                    },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+
+            // Country Doughnut Chart
+            const countryCtx = document.getElementById('countryChart').getContext('2d');
+            const countryDataRaw = Object.entries(nations).sort((a,b) => b[1]-a[1]).slice(0, 5);
+            const otherSum = Object.entries(nations).sort((a,b) => b[1]-a[1]).slice(5).reduce((acc, curr) => acc + curr[1], 0);
+            if (otherSum > 0) countryDataRaw.push(['Others', otherSum]);
+
+            if (countryChartInstance) countryChartInstance.destroy();
+            countryChartInstance = new Chart(countryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: countryDataRaw.map(d => d[0]),
+                    datasets: [{
+                        data: countryDataRaw.map(d => d[1]),
+                        backgroundColor: [
+                            'rgba(99, 102, 241, 0.8)', 'rgba(56, 189, 248, 0.8)', 
+                            'rgba(244, 63, 94, 0.8)', 'rgba(245, 158, 11, 0.8)', 
+                            'rgba(16, 185, 129, 0.8)', 'rgba(148, 163, 184, 0.8)'
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 12
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyle: 'circle', font: {family: "Outfit", weight: '500'} } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8
+                        }
+                    },
+                    animation: { animateScale: true, animateRotate: true, duration: 1500, easing: 'easeOutBounce' }
+                }
+            });
+        }
+
+        // Custom Number Counter Animation
+        function animateValue(id, start, end, duration) {
+            if (start === end) {
+                document.getElementById(id).textContent = end;
+                return;
+            }
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const currentVal = Math.floor(progress * (end - start) + start);
+                document.getElementById(id).textContent = currentVal;
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    document.getElementById(id).textContent = end;
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function logout() {
+            apiSecret = '';
+            document.getElementById('admin-key').value = '';
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('dashboard-section').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

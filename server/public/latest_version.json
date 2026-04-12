@@ -1,0 +1,13 @@
+{
+  "latest_version": "0.1",
+  "min_version": "0.01",
+  "download_url": "https://github.com/your-repo/subtitle-extractor/releases",
+  "release_notes": "SubFast Extractor - 킬 스위치 해제 및 정상 작동 모드",
+  "notice": {
+    "active": false,
+    "id": 3,
+    "title": "✅ 시스템 점검 완료",
+    "content": "킬 스위치 테스트가 성공적으로 완료되어 모든 기능이 정상 복구되었습니다.",
+    "show_once": true
+  }
+}
