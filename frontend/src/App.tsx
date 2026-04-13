@@ -13,6 +13,9 @@ const KoreanLangIcon = ({ size, color }: { size: number, color: string }) => (
 import { useTranslation, setLanguage, Language } from './i18n';
 import './App.css';
 
+// 백엔드 API 주소 설정 (Render)
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
+
 interface TrafficLog {
   id: number;
   visitorId: string;
