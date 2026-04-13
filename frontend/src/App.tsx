@@ -40,6 +40,7 @@ interface SyncResult {
   score: number;
   new_start: string;
   new_end: string;
+  translated?: boolean;
 }
 
 function App() {

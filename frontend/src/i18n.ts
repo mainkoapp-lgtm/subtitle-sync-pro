@@ -340,8 +340,8 @@ export const setLanguage = (lang: Language) => {
 export const getLanguage = () => currentLang;
 
 export const t = (key: keyof typeof translations['ko'], params?: Record<string, string | number>) => {
-  const dict = translations[currentLang] || translations['en'];
-  let text = dict[key as string] || translations['ko'][key] || key;
+  const dict = (translations[currentLang] || translations['en']) as any;
+  let text = dict[key] || (translations['ko'] as any)[key] || key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       text = text.replace(`{${k}}`, String(v));

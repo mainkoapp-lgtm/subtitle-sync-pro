@@ -1,0 +1,15 @@
+{
+  "type": "web_service",
+  "name": "subtitle-sync-api",
+  "repo": "https://github.com/mainkoapp-lgtm/subtitle-sync-pro",
+  "branch": "master",
+  "rootDir": "backend",
+  "ownerId": "tea-d7e6op1kh4rs73a6lpvg",
+  "serviceDetails": {
+    "env": "python",
+    "envSpecificDetails": {
+      "buildCommand": "pip install -r requirements.txt",
+      "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    }
+  }
+}
