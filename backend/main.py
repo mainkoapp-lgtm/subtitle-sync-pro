@@ -1,5 +1,5 @@
 # [COMPLETED: 2026-04-11] 진행률 멈춤(Blocking) 해결 및 작업 취소(멈춤) 기능 구현 완료 (임의 수정 금지)
-from fastapi import FastAPI, UploadFile, File, Form, Header
+from fastapi import FastAPI, UploadFile, File, Form, Header, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from typing import List, Optional
@@ -27,6 +27,17 @@ IS_PRODUCTION = os.getenv("IS_PRODUCTION", "false").lower() == "true"
 MASTER_API_KEY = os.getenv("MASTER_API_KEY", "")
 
 app = FastAPI(title="Subtitle Sync API")
+
+api_router = APIRouter(prefix="/api")
+
+from pydantic import BaseModel
+class LogAction(BaseModel):
+    message: str
+
+@api_router.post("/log-action")
+def log_action(data: LogAction):
+    logger.info(f"[Frontend Action] {data.message}")
+    return {"status": "success"}
 
 # 토큰 관리 (API 접근 정책의 핵심)
 # 구조: { "token_string": { "expire_at": datetime, "used": bool, "issued_at": datetime } }
@@ -64,7 +75,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/sync")
+@api_router.post("/sync")
 async def sync_subtitles(
     ref_file: UploadFile = File(...),
     target_file: UploadFile = File(...),
@@ -147,16 +158,16 @@ async def sync_subtitles(
         "data": result
     }
 
-@app.get("/progress/{task_id}")
+@api_router.get("/progress/{task_id}")
 def get_progress(task_id: str):
     return {"progress": tasks_progress.get(task_id, 0)}
 
-@app.post("/cancel/{task_id}")
+@api_router.post("/cancel/{task_id}")
 def cancel_task(task_id: str):
     tasks_cancelled.add(task_id)
     return {"status": "cancelled"}
 
-@app.get("/config")
+@api_router.get("/config")
 def get_config():
     """프런트엔드에 현재 서버 운영 모드를 반환합니다."""
     return {
@@ -164,7 +175,7 @@ def get_config():
         "apiBaseUrl": os.getenv("API_BASE_URL", "http://localhost:8000")
     }
 
-@app.post("/reward/verify")
+@api_router.post("/reward/verify")
 async def verify_reward(ad_payload: Optional[dict] = None):
     """
     광고 완료 검증 및 작업 티켓 발행
@@ -189,7 +200,7 @@ async def verify_reward(ad_payload: Optional[dict] = None):
     logger.info(f"신규 작업 티켓 발행 (정책 승인): {new_token[:8]}...")
     return {"status": "success", "token": new_token}
 
-@app.get("/logs")
+@api_router.get("/logs")
 def get_logs():
     if os.path.exists(LOG_FILE_PATH):
         with open(LOG_FILE_PATH, "r", encoding="utf-8") as f:
@@ -197,7 +208,7 @@ def get_logs():
             return PlainTextResponse("".join(lines[-400:])) # 더 긴 로그 확인 가능하게 상향
     return PlainTextResponse("No logs found.")
 
-@app.post("/clear-logs")
+@api_router.post("/clear-logs")
 async def clear_logs():
     if os.path.exists(LOG_FILE_PATH):
         with open(LOG_FILE_PATH, "w", encoding="utf-8") as f:
@@ -208,7 +219,7 @@ import json
 
 TRAFFIC_LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "traffic_logs.json")
 
-@app.post("/traffic")
+@api_router.post("/traffic")
 async def log_traffic(data: dict):
     """방문자 유입 로그를 저장합니다."""
     # 필수 필드 추출
@@ -253,7 +264,7 @@ class ContactForm(BaseModel):
     type: str # 협찬/제휴 or 일반 문의
     message: str
 
-@app.post("/contact")
+@api_router.post("/contact")
 async def send_contact_email(form: ContactForm):
     """프론트엔드에 이메일 주소를 노출하지 않고 백엔드에서만 처리를 담당하는 보안 발송기"""
     logger.info(f"--- 신규 접수 ({form.type}) --- 발신자 명: {form.name} ({form.email})")
@@ -293,7 +304,7 @@ async def send_contact_email(form: ContactForm):
 
 ADMIN_SECRET_KEY = "subfast-master-key-2026" # 사용자님 전용 비밀 키
 
-@app.get("/admin/traffic")
+@api_router.get("/admin/traffic")
 async def get_traffic_logs(x_admin_key: Optional[str] = Header(None)):
     """관리자용 방문자 통계를 반환합니다 (비밀 키 검증)."""
     if x_admin_key != ADMIN_SECRET_KEY:
@@ -305,6 +316,8 @@ async def get_traffic_logs(x_admin_key: Optional[str] = Header(None)):
         with open(TRAFFIC_LOG_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return []
+
+app.include_router(api_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

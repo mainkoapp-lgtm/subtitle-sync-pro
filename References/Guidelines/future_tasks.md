@@ -266,3 +266,13 @@
   - `frontend/tsconfig.json` 파일의 `compilerOptions` 영역에 `"types": ["vite/client"]`를 추가함.
   - `frontend/src/vite-env.d.ts` 파일을 생성하여 `/// <reference types="vite/client" />` 구문을 추가함.
 - **결과**: [테스트 필요] (로컬 빌드 통과 확인)
+
+---
+
+### [성공] 2026-04-13: 서비스 모드 전환 시 API 경로 불일치(404) 해결 및 라우터 일원화
+- **문제점**: 프론트엔드는 `axios` 호출 시 `/api/sync`, `/api/config` 등을 요청하지만, 실제 배포된 백엔드(`main.py`)에는 `/api` 접두어 없이 `@app.post("/sync")` 형태로 정의되어 있어 404 에러 발생. 이로 인해 통신에 실패하여 '싱크 작업에 실패했습니다'라는 에러 토스트가 뜨고 개발 모드로 강제 폴백(Fallback)되는 현상 발생.
+- **수정 과정 및 핵심 코드**:
+  - `backend/main.py`: `APIRouter(prefix="/api")`를 도입하여 모든 엔드포인트(`@app.get`, `@app.post`)를 `@api_router`로 변경.
+  - 프론트엔드에서 누락되어 에러를 유발하던 `/api/log-action` 엔드포인트를 백엔드 라우터에 신규 구현.
+  - 라우터 일원화를 달성하여 더 이상 프록시 없이도 배포 환경에서 프론트와 백엔드가 정상 통신하도록 수정함.
+- **결과**: [테스트 필요]
