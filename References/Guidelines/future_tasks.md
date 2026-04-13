@@ -255,5 +255,14 @@
 - **변경 사항**: 
     - **Vercel/Render 정책 검증**: 광고 포함 시 유료 전환 필수성(Vercel) 및 계정 단위 할당량(Render)을 공식 문서로 확인함.
     - **무료 플랜 원칙 명문화**: 모든 인프라를 $0 범위 내에서 구축한다는 원칙을 `.agent/rules` 및 지침서에 기록함.
-    - **외부 정책 폴더 기록**: `D:\Project Temporary\정책` 폴더에 관련 내용을 동기화함.
 - **결과**: [성공] (지침서 `free_plan_policy.md` 및 `hosting_quota_policy.md` 기록 완료)
+
+---
+
+### [테스트 필요] 2026-04-13: Frontend Vite 빌드 에러 (TS2339) 수정
+- **문제점**: `subtitle-sync-frontend` 운영 환경 빌드 시 `src/App.tsx(17,38): error TS2339: Property 'env' does not exist on type 'ImportMeta'.` 에러 발생.
+- **수정 과정 및 핵심 코드**:
+  - Vite의 클라이언트 타입 정의(`vite/client`)가 누락되어 `import.meta.env`를 인식하지 못함.
+  - `frontend/tsconfig.json` 파일의 `compilerOptions` 영역에 `"types": ["vite/client"]`를 추가함.
+  - `frontend/src/vite-env.d.ts` 파일을 생성하여 `/// <reference types="vite/client" />` 구문을 추가함.
+- **결과**: [테스트 필요] (로컬 빌드 통과 확인)
