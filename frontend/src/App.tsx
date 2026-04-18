@@ -458,10 +458,10 @@ function App() {
       </header>
 
       <div className="settings-bar glass-morphism" style={{ justifyContent: 'center' }}>
-        <div className="setting-group flex-1" style={{ flexDirection: 'column', alignItems: 'center', gap: '5px', maxWidth: '520px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-            <label style={{ whiteSpace: 'nowrap', fontSize: '0.9rem', opacity: 0.8 }}>{t('apiKeyLabel')} (제미나이 API)</label>
-            <div className="api-input-group" style={{ flex: 'none', width: '320px' }}>
+        <div className="setting-group flex-1" style={{ flexDirection: 'column', alignItems: 'center', gap: '5px', maxWidth: '860px', margin: '0 auto', width: '100%' }}>
+          <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
+            <label style={{ whiteSpace: 'nowrap', fontSize: '0.95rem', fontWeight: 'bold' }}>{t('apiKeyLabel')} (제미나이 API)</label>
+            <div className="api-input-group" style={{ flex: 'none', width: '380px' }}>
               <input 
                 type="text" 
                 placeholder={t('apiKeyPlaceholder')} 
