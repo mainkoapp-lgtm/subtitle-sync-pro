@@ -90,14 +90,11 @@ async def sync_subtitles(
         logger.warning(f"접근 거부: 유효하지 않은 토큰 (Token: {reward_token})")
         return {"status": "error", "message": "광고 시청 확인이 만료되었거나 유효하지 않습니다."}
 
-    # 2. [API 키 터널링] 보안 노출 방지를 위해 서버 키 주입
+    # 2. 사용자 API 키 검증 (서버 키 대신 클라이언트 제공 키 통일)
     effective_api_key = api_key
-    if IS_PRODUCTION:
-        if not MASTER_API_KEY:
-            logger.error("MASTER_API_KEY 미설정")
-            return {"status": "error", "message": "서버 설정 오류"}
-        effective_api_key = MASTER_API_KEY
-        logger.info(f"보안 터널 통과: 마스터 키 주입 완료")
+    if not effective_api_key:
+        logger.error("API 키 미제공")
+        return {"status": "error", "message": "API 키가 제공되지 않았습니다. 제미나이 API 키를 입력해주세요."}
 
     logger.info(f"동기화 작업 시작: {ref_file.filename} (태스크: {task_id})")
     
