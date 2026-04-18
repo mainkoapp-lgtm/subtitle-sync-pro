@@ -72,6 +72,7 @@ function App() {
   const [adCountdown, setAdCountdown] = useState(5);
   const [adStatus, setAdStatus] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   // 서버 설정 가져오기 (운영 모드 확인)
   useEffect(() => {
@@ -470,12 +471,14 @@ function App() {
               <button className="save-btn" onClick={handleSaveSettings}>{t('saveSettings')}</button>
             </div>
           </div>
-          <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#ef4444', textAlign: 'center' }}>
-            * (안내) 입력하신 API 키는 개발자에게 전송되거나 서버에 일절 저장/수집되지 않습니다.
-          </p>
-          <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', lineHeight: '1.5', opacity: 0.8 }}>
-            ※ 면책 조항: 본 서비스는 자막 파일을 서버에 저장·배포하지 않는 유틸리티입니다. 
-            모든 법적 책임은 사용자 본인에게 있습니다.
+          <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>
+            * (안내) 입력하신 API 키는 서버에 저장/수집되지 않습니다. 
+            <button 
+              onClick={() => setShowDisclaimer(true)} 
+              style={{ background: 'none', border: 'none', color: '#6366f1', textDecoration: 'underline', cursor: 'pointer', marginLeft: '5px', fontSize: '0.8rem' }}
+            >
+              [면책조항 보기]
+            </button>
           </p>
         </div>
       </div>
@@ -701,6 +704,29 @@ function App() {
               <p>기타 문의사항은 '광고/협찬 및 문의하기' 폼을 통해 접수해주시기 바랍니다.</p>
             </div>
             <button className="guide-close-btn" onClick={() => setShowPrivacy(false)}>확인</button>
+          </div>
+        </div>
+      )}
+
+      {showDisclaimer && (
+        <div className="modal-overlay">
+          <div className="guide-modal glass-morphism animate-in" style={{ maxWidth: '600px' }}>
+            <div className="guide-header">
+              <h2>면책 조항 (Disclaimer)</h2>
+              <button className="close-x" onClick={() => setShowDisclaimer(false)}>&times;</button>
+            </div>
+            <div className="guide-content" style={{ padding: '20px', fontSize: '1rem', lineHeight: '1.8' }}>
+              <p style={{ marginBottom: '15px' }}>
+                본 서비스는 사용자가 업로드한 자막 파일을 서버에 무단 저장·배포하지 않는 <strong>단순 동기화 도구(Utility)</strong>입니다.
+              </p>
+              <p style={{ color: '#f87171', fontWeight: 'bold' }}>
+                저작권이 있는 자막 파일 원본의 불법 사용 및 공유로 인해 발생하는 모든 법적 책임은 전적으로 사용자 본인에게 있음을 알려드립니다.
+              </p>
+              <p style={{ marginTop: '15px', color: '#94a3b8', fontSize: '0.9rem' }}>
+                사용자는 본 서비스를 이용함으로써 위 사항에 동의하는 것으로 간주됩니다.
+              </p>
+            </div>
+            <button className="guide-close-btn" onClick={() => setShowDisclaimer(false)}>확인 및 동의</button>
           </div>
         </div>
       )}
