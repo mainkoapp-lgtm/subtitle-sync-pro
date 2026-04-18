@@ -86,7 +86,7 @@ def parse_smi(content: str) -> List[SubtitleBlock]:
     # re.DOTALL을 사용하여 줄바꿈 포함 매칭
     contents = re.split(r'<SYNC Start=\d+>', content, flags=re.IGNORECASE)[1:]
     
-    temp_blocks = []
+    valid_blocks = []
     for i in range(len(sync_points)):
         start_ms = int(sync_points[i])
         text_raw = contents[i].strip()
@@ -97,24 +97,11 @@ def parse_smi(content: str) -> List[SubtitleBlock]:
         text = re.sub(r'\s+', ' ', text).strip()
         
         if text:  # 텍스트가 있는 경우만 유효 블록으로 간주
-            temp_blocks.append({
-                "start_ms": start_ms,
-                "text": text
-            })
+            # 가장 가까운 다음 SYNC를 종료 시간으로, 마지막이면 +3초
+            end_ms = int(sync_points[i+1]) if i + 1 < len(sync_points) else start_ms + 3000
+            valid_blocks.append(SubtitleBlock(len(valid_blocks) + 1, ms_to_srt_time(start_ms), ms_to_srt_time(end_ms), text))
             
-    # 3. 종료 시간 결정 (다음 SYNC의 시작 시간 혹은 +3초)
-    for i in range(len(temp_blocks)):
-        curr = temp_blocks[i]
-        start_time = ms_to_srt_time(curr["start_ms"])
-        
-        if i < len(temp_blocks) - 1:
-            end_time = ms_to_srt_time(temp_blocks[i+1]["start_ms"])
-        else:
-            end_time = ms_to_srt_time(curr["start_ms"] + 3000)
-            
-        blocks.append(SubtitleBlock(i + 1, start_time, end_time, curr["text"]))
-        
-    return blocks
+    return valid_blocks
 
 def parse_subtitles(content: str, filename: str = "") -> List[SubtitleBlock]:
     """확장자 및 내용에 따라 적절한 파서 호출"""
@@ -207,12 +194,23 @@ def gemini_batch_match(ref_window: List[SubtitleBlock], target_window: List[Subt
         mapping = response.parsed
         if not mapping:
             # 보조 파싱 (문자열인 경우)
-            mapping = json.loads(response.text)
+            raw_text = response.text.strip()
+            if raw_text.startswith("```json"):
+                raw_text = raw_text[7:]
+            elif raw_text.startswith("```"):
+                raw_text = raw_text[3:]
+            if raw_text.endswith("```"):
+                raw_text = raw_text[:-3]
+            mapping = json.loads(raw_text.strip())
             
         # 문자열 키를 정수로 변환
         return {int(k): v for k, v in mapping.items() if v is not None}
     except Exception as e:
         logger.error(f"Gemini API 호출 실패: {str(e)}")
+        # API 오류가 발생하면 묵시적으로 넘기지 않고, 명시적으로 예외 처리(프론트엔드 에러로 반환)
+        error_str = str(e)
+        if "403" in error_str or "401" in error_str or "PERMISSION_DENIED" in error_str or "API key not valid" in error_str or "leaked" in error_str:
+            raise ValueError(f"제미나이 API 키 오류 (유출 또는 한도 초과/만료). 관리자에게 문의하거나 새로운 키를 사용하세요. 상세: {error_str}")
         return {}
 
 def fill_missing_subtitles(results: List[Dict], api_key: str, model_name: str, progress_callback=None, check_cancel=None, target_lang: str="ko") -> List[Dict]:

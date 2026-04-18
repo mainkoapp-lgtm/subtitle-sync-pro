@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 
 interface CoupangDynamicBannerProps {
   id?: number;
@@ -11,7 +11,7 @@ interface CoupangDynamicBannerProps {
  * CoupangDynamicBanner - 쿠팡 파트너스 다이나믹 배너 컴포넌트
  * [승인 최적화] 공정위 대가성 문구가 기본 포함되어 있습니다.
  */
-const CoupangDynamicBanner = ({ 
+const CoupangDynamicBannerBase = ({ 
   id = 981842, 
   width = "680", 
   height = "140", 
@@ -98,6 +98,8 @@ const CoupangDynamicBanner = ({
     </div>
   );
 };
+
+const CoupangDynamicBanner = memo(CoupangDynamicBannerBase);
 
 // Global Window 인터페이스 확장
 declare global {

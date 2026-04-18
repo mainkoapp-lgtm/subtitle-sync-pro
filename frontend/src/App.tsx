@@ -47,6 +47,16 @@ interface SyncResult {
   translated?: boolean;
 }
 
+// 광고 사이드바 컴포넌트 (App 외부로 이동하여 리렌더링 시 언마운트 방지)
+const AdSidebar = ({ side }: { side: 'left' | 'right' }) => (
+  <div className={`ad-sidebar ad-sidebar-${side}`} style={{ padding: '0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <span className="ad-label" style={{ padding: '10px 0 0' }}>ADVERTISEMENT</span>
+    <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+      <CoupangDynamicBanner id={side === 'left' ? 981842 : 981849} width="160" height="600" template="carousel" />
+    </div>
+  </div>
+);
+
 function App() {
   const { t, lang } = useTranslation();
   const [refFile, setRefFile] = useState<File | null>(null);
@@ -400,6 +410,7 @@ function App() {
     }
   };
 
+  // ... (다른 핸들러들)
   const handleDownload = () => {
     if (results.length === 0) return;
     
@@ -422,15 +433,6 @@ function App() {
     
     axios.post('/api/log-action', { message: t('downloadLog', { n: results.length }) }).catch(() => {});
   };
-
-  const AdSidebar = ({ side }: { side: 'left' | 'right' }) => (
-    <div className={`ad-sidebar ad-sidebar-${side}`} style={{ padding: '0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <span className="ad-label" style={{ padding: '10px 0 0' }}>ADVERTISEMENT</span>
-      <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
-        <CoupangDynamicBanner id={side === 'left' ? 981842 : 981849} width="160" height="600" template="carousel" />
-      </div>
-    </div>
-  );
 
   return (
     <div className="container">
@@ -626,7 +628,7 @@ function App() {
                     className="sync-btn" 
                     style={{ width: '100%', justifyContent: 'center', background: '#e11d48' }} // 쿠팡스러운 레드
                     onClick={async () => {
-                      window.open('https://link.coupang.com', '_blank'); // 실제 주소로 교체 필요
+                      window.open('https://flowstate-timer.netlify.app/', '_blank'); 
                       try {
                         const res = await axios.post('/api/reward/verify');
                         if (res.data.status === 'success') {
