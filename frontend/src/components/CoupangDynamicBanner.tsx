@@ -46,20 +46,21 @@ const CoupangDynamicBannerBase = ({
       script.id = scriptId;
       script.src = 'https://ads-partners.coupang.com/g.js';
       script.async = true;
-      script.onload = initBanner;
+      script.addEventListener('load', initBanner);
       document.head.appendChild(script);
     } else {
       // 스크립트가 이미 있다면 즉시 초기화 시도
       if (window.PartnersCoupang) {
         initBanner();
       } else {
-        script.onload = initBanner;
+        script.addEventListener('load', initBanner);
       }
     }
 
     return () => {
-      // 클린업: 필요 시 배너 내용을 비울 수 있으나, 
-      // 다이나믹 배너의 경우 페이지 이동 시 다시 렌더링되도록 유지하는 것이 일반적입니다.
+      if (script) {
+        script.removeEventListener('load', initBanner);
+      }
     };
   }, [id, width, height, template]);
 

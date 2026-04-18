@@ -598,7 +598,7 @@ function App() {
       </main>
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
-        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.1. All rights reserved.</p>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.11. All rights reserved.</p>
         <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
           ※ 면책 조항: 본 서비스는 사용자가 업로드한 자막 파일을 서버에 무단 저장·배포하지 않는 단순 동기화 도구입니다. 
           불법적인 사용 및 공유에 대한 책임은 사용자에게 있습니다.
