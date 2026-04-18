@@ -173,6 +173,10 @@ header p {
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-bottom: 24px;
+  width: 100%;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .mismatch-warning-banner {
@@ -339,6 +343,11 @@ header p {
   margin-bottom: 30px;
   border-radius: 12px;
   flex-wrap: wrap;
+  width: 100%;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
 }
 
 .setting-group {
