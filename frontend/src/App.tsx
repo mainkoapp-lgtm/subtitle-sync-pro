@@ -470,8 +470,12 @@ function App() {
               <button className="save-btn" onClick={handleSaveSettings}>{t('saveSettings')}</button>
             </div>
           </div>
-          <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#ef4444' }}>
+          <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#ef4444', textAlign: 'center' }}>
             * (안내) 입력하신 API 키는 개발자에게 전송되거나 서버에 일절 저장/수집되지 않습니다.
+          </p>
+          <p style={{ margin: '8px 0 0', fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', lineHeight: '1.5', maxWidth: '500px' }}>
+            ※ 면책 조항: 본 서비스는 사용자가 업로드한 자막 파일을 서버에 무단 저장·배포하지 않는 단순 동기화 도구(Utility)입니다. 
+            저작권이 있는 자막 파일 원본의 불법 사용 및 공유로 인해 발생하는 모든 법적 책임은 전적으로 사용자 본인에게 있습니다.
           </p>
         </div>
       </div>
@@ -589,9 +593,13 @@ function App() {
         {/* 쿠팡 가로 배너 삭제됨 (사이드로 이동) */}
       </main>
 
-      <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-        <p>&copy; 2026 Subtitle Sync Pro v0.1. All rights reserved.</p>
-        <div style={{ display: 'flex', gap: '20px' }}>
+      <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.1. All rights reserved.</p>
+        <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
+          ※ 면책 조항: 본 서비스는 사용자가 업로드한 자막 파일을 서버에 무단 저장·배포하지 않는 단순 동기화 도구입니다. 
+          불법적인 사용 및 공유에 대한 책임은 사용자에게 있습니다.
+        </p>
+        <div style={{ display: 'flex', gap: '20px', marginTop: '10px' }}>
           <button className="contact-btn" onClick={() => setShowContact(true)}>광고/협찬 및 문의하기</button>
           <button className="contact-btn" onClick={() => setShowPrivacy(true)} style={{ background: 'rgba(255,255,255,0.05)' }}>개인정보처리방침</button>
         </div>

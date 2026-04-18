@@ -302,7 +302,7 @@ async def send_contact_email(form: ContactForm):
         from fastapi import HTTPException
         raise HTTPException(status_code=500, detail="Mail server error")
 
-ADMIN_SECRET_KEY = "subfast-master-key-2026" # 사용자님 전용 비밀 키
+ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "subfast-master-key-default-2026") # 보안: .env에서 로드
 
 @api_router.get("/admin/traffic")
 async def get_traffic_logs(x_admin_key: Optional[str] = Header(None)):
