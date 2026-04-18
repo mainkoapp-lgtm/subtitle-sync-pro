@@ -6,9 +6,9 @@
 
 | 서비스 | 주요 무료 혜택 (무기한) | 제약 사항 및 특이점 |
 | :--- | :--- | :--- |
-| **Vercel** 🏆 | - 대역폭: 100GB/월<br>- Edge Requests: 100만 회/월 | - **비상업적 용도** 한정 (Hobby Plan)<br>- 할당량 초과 시 서비스 즉시 중단 (Hard Limit) |
-| **Netlify** | - 300 Credits/월 지급<br>- 빌드 분 단위 차감 방식 | - 2026년 기준 **크레딧 기반**으로 변경됨<br>- 크레딧 소진 시 다음 달까지 프로젝트 일시 정지 |
-| **Firebase** | - 대역폭: 10GB/월<br>- 저장 공간: 1GB | - 구글 인프라 기반의 매우 높은 안정성<br>- 하루 단위/월 단위 초기화 (Spark Plan) |
+| **Cloudflare Pages** 🏆 | - 대역폭/요청: **무제한**<br>- 글로벌 CDN 기본 탑재 | - **최종 선정**: 가장 강력한 무료 티어 제공<br>- 도메인: `*.pages.dev` |
+| **Vercel** | - 대역폭: 100GB/월 | - 비상업적 용도 한정<br>- 할당량 초과 시 서비스 중단 위험 |
+| **Firebase** | - 대역폭: 10GB/월 | - 구글 인프라 기반 안정성 |
 
 ## 2. 백엔드 및 엔진 (Python / API)
 
@@ -28,9 +28,16 @@ AI 자막 매칭 엔진(`aligner.py`)을 구동하기 위한 서버 정책입니
 3. **API Tunneling**: 프런트엔드에서 백엔드 엔진을 호출할 때 도메인 마스킹을 적용하여 실제 서버 주소 노출을 최소화한다.
 
 ## 💡 최종 배포 확정 전략
-- **Frontend**: **Vercel** (UI 정적 파일 배포, 글로벌 최적화)
+- **Frontend**: **Cloudflare Pages** ([https://subtitle-sync-pro.pages.dev/](https://subtitle-sync-pro.pages.dev/))
 - **Backend/Engine**: **Render** (핵심 파이썬 로직 격리 배포)
 - **Keep-alive**: 외부 모니터링 서비스로 Render 서버 상시 기상 유지 (무료 무한 가동)
 - **Data/Notice**: **Firebase** (공지사항 JSON 관리)
 
-*최종 확인 일자: 2026-04-12*
+*최종 확인 일자: 2026-04-18*
+
+---
+
+### 2026-04-18: [환경 설정] 실 배포 호스팅 정보 업데이트
+- **내용**: 프런트엔드 호스팅 서비스를 Vercel에서 Cloudflare Pages로 변경하고 실제 운영 URL을 지침서에 반영함.
+- **주소**: [https://subtitle-sync-pro.pages.dev/](https://subtitle-sync-pro.pages.dev/)
+- **결과**: [성공] (사용자 확인 완료)

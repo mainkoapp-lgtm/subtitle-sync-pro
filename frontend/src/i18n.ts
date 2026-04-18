@@ -64,7 +64,16 @@ export const translations = {
     extStep3: "출력 형식과 저장 위치를 설정합니다.",
     extStep4: "[선택한 자막 추출]을 누르면 즉시 완료됩니다.",
     refType: "참조용",
-    targetType: "대상용"
+    targetType: "대상용",
+    adTitleLoading: "광고 불러오는 중...",
+    adTitleReady: "광고 준비 완료",
+    adTitlePlaying: "광고 시청 중...",
+    adTitleComplete: "보상 획득 완료!",
+    adCoupangTitle: "오늘의 추천 특가",
+    adCoupangDesc: "최저가 확인하고 바로 매칭 시작하기",
+    adDisclaimer: "이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.",
+    adStartNext: "매칭 시작하기",
+    adWatchRequired: "무료 이용을 위해 광고 시청이 필요합니다."
   },
   en: {
     appTitle: "Subtitle Sync Pro",
@@ -129,7 +138,16 @@ export const translations = {
     extStep3: "Set output format and save location.",
     extStep4: "Click [Extract] to save immediately.",
     refType: "Reference",
-    targetType: "Target"
+    targetType: "Target",
+    adTitleLoading: "Loading Ad...",
+    adTitleReady: "Ad Ready",
+    adTitlePlaying: "Watching Ad...",
+    adTitleComplete: "Reward Granted!",
+    adCoupangTitle: "Today's Recommended Deals",
+    adCoupangDesc: "Check deals to start sync immediately",
+    adDisclaimer: "This post involves affiliate marketing activities and may earn commissions.",
+    adStartNext: "Start Matching",
+    adWatchRequired: "Ad viewing is required for free use."
   },
   ja: {
     appTitle: "Subtitle Sync Pro",

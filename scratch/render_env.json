@@ -1,0 +1,5 @@
+[
+  {"key": "IS_PRODUCTION", "value": "true"},
+  {"key": "MASTER_API_KEY", "value": "AIzaSyAQIIPG9RZSMJlT7Kagnl4dOSE3XSDFb14"},
+  {"key": "API_BASE_URL", "value": "https://subtitle-sync-api.onrender.com"}
+]

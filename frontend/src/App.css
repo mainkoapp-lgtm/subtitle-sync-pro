@@ -2,12 +2,123 @@
   max-width: 1000px;
   margin: 0 auto;
   padding: 40px 20px;
-  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+/* 사이드 광고 영역 */
+.ad-sidebar {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 160px;
+  height: 600px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.ad-sidebar-left {
+  left: calc(50% - 700px);
+}
+
+.ad-sidebar-right {
+  right: calc(50% - 700px);
+}
+
+.ad-label {
+  font-size: 10px;
+  color: #475569;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ad-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #334155;
+  font-size: 0.8rem;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255,255,255,0.01),
+    rgba(255,255,255,0.01) 10px,
+    rgba(255,255,255,0.02) 10px,
+    rgba(255,255,255,0.02) 20px
+  );
+}
+
+@media (max-width: 1400px) {
+  .ad-sidebar {
+    display: none;
+  }
+}
+
+/* 쿠팡 파트너스 필수 안내 문구 */
+.coupang-disclaimer {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-align: center;
+  margin-top: 10px;
+  line-height: 1.4;
+  max-width: 90%;
 }
 
 header {
   text-align: center;
   margin-bottom: 60px;
+}
+
+/* 광고 전용 프리미엄 모달 */
+.reward-ad-modal {
+  max-width: 480px !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.ad-video-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ad-timer-overlay {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 700;
+  backdrop-filter: blur(4px);
+}
+
+.ad-modal-body {
+  padding: 30px;
+  text-align: center;
+}
+
+.ad-modal-footer {
+  padding: 20px 30px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .logo {
