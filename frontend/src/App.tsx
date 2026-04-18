@@ -457,26 +457,25 @@ function App() {
       </header>
 
       <div className="settings-bar glass-morphism" style={{ justifyContent: 'center' }}>
-        <div className="setting-group flex-1" style={{ flexDirection: 'column', alignItems: 'center', gap: '5px', width: '100%', margin: '0 auto' }}>
-          <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
-            <label style={{ whiteSpace: 'nowrap', fontWeight: 'bold', fontSize: '1rem' }}>{t('apiKeyLabel')} (제미나이 API)</label>
-            <div className="api-input-group" style={{ flex: 'none', width: '400px' }}>
+        <div className="setting-group flex-1" style={{ flexDirection: 'column', alignItems: 'center', gap: '5px', maxWidth: '520px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+            <label style={{ whiteSpace: 'nowrap', fontSize: '0.9rem', opacity: 0.8 }}>{t('apiKeyLabel')} (제미나이 API)</label>
+            <div className="api-input-group" style={{ flex: 'none', width: '320px' }}>
               <input 
                 type="text" 
                 placeholder={t('apiKeyPlaceholder')} 
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                style={{ flex: 1 }}
               />
               <button className="save-btn" onClick={handleSaveSettings}>{t('saveSettings')}</button>
             </div>
           </div>
-          <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: '#ef4444', textAlign: 'center', fontWeight: 'bold' }}>
+          <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#ef4444', textAlign: 'center' }}>
             * (안내) 입력하신 API 키는 개발자에게 전송되거나 서버에 일절 저장/수집되지 않습니다.
           </p>
-          <p style={{ margin: '8px 0 0', fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', lineHeight: '1.6', maxWidth: '800px' }}>
-            ※ 면책 조항: 본 서비스는 사용자가 업로드한 자막 파일을 서버에 무단 저장·배포하지 않는 단순 동기화 도구(Utility)입니다. 
-            저작권이 있는 자막 파일 원본의 불법 사용 및 공유로 인해 발생하는 모든 법적 책임은 전적으로 사용자 본인에게 있습니다.
+          <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', lineHeight: '1.5', opacity: 0.8 }}>
+            ※ 면책 조항: 본 서비스는 자막 파일을 서버에 저장·배포하지 않는 유틸리티입니다. 
+            모든 법적 책임은 사용자 본인에게 있습니다.
           </p>
         </div>
       </div>
