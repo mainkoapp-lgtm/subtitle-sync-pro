@@ -283,3 +283,66 @@
 - **문제점**: 자막 첨부 시 나타나는 경고 문구 "유사도 {n}%"가 어떤 기준인지 불명확하여 혼란을 줄 수 있었음.
 - **수정 과정 및 핵심 코드**: `frontend/src/i18n.ts` 파일 내 다국어 팩(5개 국어)의 `mismatchWarning` 객체 텍스트 중 '유사도'를 모두 '파일명 유사도(Filename Similarity)'로 변경.
 - **결과**: [테스트 필요]
+
+---
+
+### [테스트 필요] 2026-04-18: 구글 애즈 승인 대기 중 사용자 API 강제 입력(BYOK) 로직 적용 및 UI 정제
+- **문제점**: 구글 애즈 광고 승인 대기 기간 중 서버/개발자의 제미나이 API가 노출 또는 오남용되어 불필요한 과금이 발생하는 것을 방지해야 하고, 불필요한 AI 엔진 배지가 UI 공간을 차지함.
+- **수정 과정 및 핵심 코드**: 
+  - `frontend/src/App.tsx`: `App.tsx` 내 API 입력 UI(`settings-bar`)를 감싸고 있던 `{!isProduction && ...}` 조건을 제거하여 서비스 배포 후에도 무조건 API 입력창이 노출되도록 수정.
+  - API 입력폼에 `(제미나이 API)` 문구를 추가하고, 하단에 사용자 안심용 안내 문구 추가.
+  - 불필요한 `AI 엔진: Gemini 3.1 Flash (Preview)` 배지 UI 블록 삭제 및 전체 API 입력창 중앙(Center) 정렬 처리.
+  - 화면 하단 중앙에 배치되어 있던 가로 형식의 쿠팡 파트너스 광고 배너를 삭제하고, 해상도 1400px 이상에서 노출되는 좌/우 양측 사이드바 영역에 세로형 다이나믹 배너(크기 160x600)로 각각 교체 삽입 완료. (좌: 981842, 우: 981849 - 브라우저 에이전트로 직접 생성)
+  - **버전 명시 위치 고정**: `frontend/src/App.tsx` 최하단 Footer 영역의 Copyright 텍스트(`Subtitle Sync Pro v0.1`)에 버전을 명시하고 하드코딩으로 표기하도록 기록.
+- **결과**: [테스트 필요]
+
+---
+
+### [성공] 2026-04-18: EXE 자막 추출기 하단 배너 슬라이드(로테이션) 기능 및 FlowState Timer 광고 적용
+- **문제점**: EXE 파일의 자막 추출기 하단 광고 영역이 단일 정지 이미지로만 구성되어 있어 홍보 효율이 낮고, 클릭 시 이동하는 URL이 기본값으로 설정되어 있었음.
+- **수정 과정 및 핵심 코드**:
+  - `tools/subtitle_extractor/gui.py`: `_build_ad_banner` 메소드를 전면 개편하여 `img/flowstatetimer` 폴더 내의 `banner_auto_900x110.png`와 `banner_usage_900x110.png` 두 장의 이미지를 순차적으로 로드함.
+  - `_rotate_ad` 메소드를 신규 구현하여 `root.after(5000, ...)`를 통해 5초 간격으로 이미지가 자동 순환되도록 로직을 추가함.
+  - 모든 배너 클릭 시의 이동 주소를 `https://flowstate-timer.netlify.app/`로 업데이트 완료.
+  - 이미지 로드 실패 시 나타나는 대체 텍스트 광고 문구도 FlowState Timer 홍보 문구로 변경함.
+- **결과**: [테스트 필요]
+
+---
+
+### [성공] 2026-04-18: EXE 자막 추출기 창 크기 조절 시 광고 배너 가시성 유지 및 레이아웃 최적화
+- **문제점**: EXE 프로그램의 창 높이를 줄일 경우, 하단에 배치된 광고 배너가 가장 먼저 사라지는 문제가 발생함. 사용자가 중요 영역(트랙 목록, 로그)보다 광고를 우선적으로 유지하기를 원함.
+- **수정 과정 및 핵심 코드**:
+  - `tools/subtitle_extractor/gui.py`: `_build_ui` 메소드에서 `pack` 순서를 조정함.
+  - 광고 배너(`_build_ad_banner`)와 컨트롤 영역(`_build_controls`)을 `side=tk.BOTTOM`으로 먼저 배치하여 화면 하단에 우선 고정되도록 함.
+  - 중앙의 자막 트랙 목록과 작업 로그 영역(`middle_frame`)에 `expand=True`를 부여하여, 창 크기가 줄어들 때 하단 광고 대신 중앙 영역이 먼저 축소되도록 레이아웃 로직을 개선함.
+- **결과**: [테스트 필요]
+
+---
+
+### [성공] 2026-04-18: EXE 자막 추출기 광고 배너 이미지 확장자 변경 (PNG -> JPG)
+- **문제점**: 사용자가 광고 이미지를 수정하여 JPG 파일로 교체함에 따라, 프로그램에서 참조하는 파일 확장자 수정이 필요함.
+- **수정 과정 및 핵심 코드**:
+  - `tools/subtitle_extractor/gui.py`: `img_paths` 리스트 내의 파일명을 `banner_auto_900x110.jpg` 및 `banner_usage_900x110.jpg`로 업데이트하여 수정된 이미지를 정상적으로 로드하도록 함.
+- **결과**: [테스트 필요]
+
+---
+
+### [성공] 2026-04-18: EXE 자막 추출기 배포용(Release) 빌드 및 FFmpeg 미인식 문제 해결
+- **문제점**: 이전 빌드 버전에서 FFmpeg를 찾지 못하는 문제가 발생했으며, 배포용 EXE에 최신 광고 이미지 배너가 포함되어 있지 않았음.
+- **수정 과정 및 핵심 코드**:
+  - `tools/subtitle_extractor/extractor.py`: `find_ffmpeg` 로직을 개선하여 PyInstaller 원파일(One-file) 빌드 내부 경로(`sys._MEIPASS`)에서도 FFmpeg를 정상적으로 탐색하도록 수정.
+  - `tools/subtitle_extractor/gui.py`: 빌드 시 내부 리소스 경로를 올바르게 인식하도록 이미지 로드 로직 최적화.
+  - `SubFast_Extractor.spec`: 빌드 설정 파일(`datas`)에 `img` 폴더를 추가하여 FlowState Timer 이미지가 EXE 내부에 포함되도록 함.
+  - `PyInstaller`를 사용하여 **Release 모드**(--noconsole, 전용 아이콘 적용)로 빌드 완료.
+  - 빌드 후 중간 부산물(`build/` 폴더) 및 임시 파일을 삭제하여 최적화 수행.
+- **결과**: [성공] (빌드 결과물: `tools/subtitle_extractor/dist/SubFast_Extractor.exe`)
+
+---
+
+### 2026-04-18: [빌드 및 배포] 웹 프런트엔드 빌드 오류 수정 및 서버 배포 도구(Cloudflare Pages) 연동
+- **문제점**: 실 배포를 위한 `npm run build` 수행 시, `App.tsx` 내에서 호출하는 `handleStop` 및 `handleDownload` 함수가 정의되지 않아 TypeScript 컴파일 에러 발생.
+- **수정 과정 및 핵심 코드**:
+  - `frontend/src/App.tsx`: 누락된 `handleStop`(작업 중단) 및 `handleDownload`(결과 파일 다운로드) 함수를 컴파일 에러가 발생하지 않도록 비즈니스 로직에 맞게 구현 및 추가.
+  - `npm run build`: 로컬 빌드 테스트를 통해 정적 파일 생성 및 컴파일 오류 없음을 최종 확인.
+  - **배포**: Git Push를 통해 연결된 Cloudflare Pages 및 Render 백엔드에 자동 배포 프로세스 가동.
+- **결과**: [테스트 필요]

@@ -12,6 +12,7 @@ const KoreanLangIcon = ({ size, color }: { size: number, color: string }) => (
 );
 import { useTranslation, setLanguage, Language } from './i18n';
 import './App.css';
+import CoupangDynamicBanner from './components/CoupangDynamicBanner';
 
 // 백엔드 API 주소 설정 (Render)
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
@@ -386,12 +387,47 @@ function App() {
     }
   };
 
+  const handleStop = async () => {
+    if (!currentTaskId) return;
+    try {
+      await axios.post(`/api/cancel/${currentTaskId}`);
+      showToast(t('taskCancelledToast'), 'error');
+    } catch (e) {
+      console.error("중단 요청 실패:", e);
+    } finally {
+      setSyncing(false);
+      setCurrentTaskId(null);
+    }
+  };
+
+  const handleDownload = () => {
+    if (results.length === 0) return;
+    
+    let content = "";
+    results.forEach((res, i) => {
+      content += `${i + 1}\n`;
+      content += `${res.new_start} --> ${res.new_end}\n`;
+      content += `${res.matched ? (res.target?.text || res.ref.text) : res.ref.text}\n\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `[Synced]_${targetFile?.name || 'subtitle.srt'}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    axios.post('/api/log-action', { message: t('downloadLog', { n: results.length }) }).catch(() => {});
+  };
+
   const AdSidebar = ({ side }: { side: 'left' | 'right' }) => (
-    <div className={`ad-sidebar ad-sidebar-${side}`}>
-      <span className="ad-label">ADVERTISEMENT</span>
-      <div className="ad-placeholder" onClick={() => window.open('https://link.coupang.com', '_blank')}>
-        <img src="/ads/side_banner.png" alt="Coupang Banner" style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
-        <div className="coupang-disclaimer" style={{ fontSize: '9px' }}>{t('adDisclaimer')}</div>
+    <div className={`ad-sidebar ad-sidebar-${side}`} style={{ padding: '0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <span className="ad-label" style={{ padding: '10px 0 0' }}>ADVERTISEMENT</span>
+      <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+        <CoupangDynamicBanner id={side === 'left' ? 981842 : 981849} width="160" height="600" template="carousel" />
       </div>
     </div>
   );
@@ -420,14 +456,11 @@ function App() {
         </div>
       </header>
 
-      {!isProduction && (
-        <div className="settings-bar glass-morphism">
-          <div className="setting-group">
-            <label>{t('aiEngine')} <span className="model-badge">Gemini 3.1 Flash (Preview)</span></label>
-          </div>
-          <div className="setting-group flex-1">
-            <label>{t('apiKeyLabel')}</label>
-            <div className="api-input-group">
+      <div className="settings-bar glass-morphism" style={{ justifyContent: 'center' }}>
+        <div className="setting-group flex-1" style={{ flexDirection: 'column', alignItems: 'center', gap: '5px', maxWidth: '600px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+            <label style={{ whiteSpace: 'nowrap' }}>{t('apiKeyLabel')} (제미나이 API)</label>
+            <div className="api-input-group" style={{ flex: 'none', width: '350px' }}>
               <input 
                 type="text" 
                 placeholder={t('apiKeyPlaceholder')} 
@@ -437,8 +470,11 @@ function App() {
               <button className="save-btn" onClick={handleSaveSettings}>{t('saveSettings')}</button>
             </div>
           </div>
+          <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#ef4444' }}>
+            * (안내) 입력하신 API 키는 개발자에게 전송되거나 서버에 일절 저장/수집되지 않습니다.
+          </p>
         </div>
-      )}
+      </div>
 
       <main>
         {/* ... 메인 업로드 및 결과 섹션 기존과 동일 ... */}
@@ -549,10 +585,12 @@ function App() {
             </div>
           </section>
         )}
+
+        {/* 쿠팡 가로 배너 삭제됨 (사이드로 이동) */}
       </main>
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-        <p>&copy; 2026 Subtitle Sync Pro. All rights reserved.</p>
+        <p>&copy; 2026 Subtitle Sync Pro v0.1. All rights reserved.</p>
         <div style={{ display: 'flex', gap: '20px' }}>
           <button className="contact-btn" onClick={() => setShowContact(true)}>광고/협찬 및 문의하기</button>
           <button className="contact-btn" onClick={() => setShowPrivacy(true)} style={{ background: 'rgba(255,255,255,0.05)' }}>개인정보처리방침</button>

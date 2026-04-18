@@ -89,15 +89,21 @@ def find_ffmpeg() -> Tuple[Optional[str], Optional[str]]:
     # ── 1순위: 프로그램 폴더 내 동봉된 FFmpeg (포터블) ──
     # PyInstaller 빌드 시 _MEIPASS, 일반 실행 시 __file__ 기준
     if getattr(sys, 'frozen', False):
-        base_dir = os.path.dirname(sys.executable)
+        # 1-1. 실행 파일과 같은 폴더 (외부 동봉)
+        exe_dir = os.path.dirname(sys.executable)
+        # 1-2. 원파일 빌드 내부 폴더 (내부 동봉)
+        bundle_dir = getattr(sys, '_MEIPASS', exe_dir)
+        base_dirs = [exe_dir, bundle_dir]
     else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dirs = [os.path.dirname(os.path.abspath(__file__))]
 
-    portable_paths = [
-        os.path.join(base_dir, 'ffmpeg', 'bin'),    # ffmpeg/bin/ 하위
-        os.path.join(base_dir, 'ffmpeg'),            # ffmpeg/ 바로 아래
-        base_dir,                                     # 프로그램과 같은 폴더
-    ]
+    portable_paths = []
+    for b_dir in base_dirs:
+        portable_paths.extend([
+            os.path.join(b_dir, 'ffmpeg', 'bin'),    # ffmpeg/bin/ 하위
+            os.path.join(b_dir, 'ffmpeg'),            # ffmpeg/ 바로 아래
+            b_dir,                                     # 프로그램과 같은 폴더
+        ])
 
     for path in portable_paths:
         ff = os.path.join(path, 'ffmpeg.exe')

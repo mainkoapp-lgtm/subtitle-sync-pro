@@ -11,3 +11,9 @@ build/
 .vscode/
 *.log
 traffic_logs.json
+
+# Security: Exclude temporary scratch scripts and sensitive files
+scratch/
+References/Guidelines/github_deployment_info.md
+*.bak
+*.tmp

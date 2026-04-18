@@ -3,6 +3,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
+import sys
 import threading
 from typing import List, Optional
 from PIL import Image, ImageTk
@@ -149,39 +150,37 @@ class SubtitleExtractorApp:
         self.ffmpeg_path, self.ffprobe_path = find_ffmpeg()
 
     def _build_ui(self):
-        """전체 UI를 레이아웃에 맞춰 구성합니다 (좌우 분할)"""
+        """전체 UI를 레이아웃에 맞춰 구성합니다 (최적화 레이아웃) [COMPLETED: 2026-04-18]"""
         main_frame = ttk.Frame(self.root, style='Dark.TFrame')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
 
-        # ── 1. 상단 섹션 (제목 + FFmpeg 상태) ──
-        self._build_header(main_frame)
+        # ── 1. 최하단 고정 섹션 (광고 배너 및 컨트롤) ──
+        # 이 영역들을 먼저 BOTTOM으로 배치하여 창이 작아져도 사라지지 않게 합니다.
+        self._build_ad_banner(main_frame)
+        self._build_controls(main_frame)
 
-        # ── 2. 파일 선택 섹션 ──
+        # ── 2. 상단 고정 섹션 ──
+        self._build_header(main_frame)
         self._build_file_selector(main_frame)
 
-        # ── 3. 중간 섹션 (좌우 분할) ──
+        # ── 3. 중앙 가변 섹션 (트랙 목록 + 로그) ──
+        # 이 영역에 expand=True를 주어, 창 크기가 변할 때 이 영역이 늘어나거나 줄어들도록 합니다.
         middle_frame = ttk.Frame(main_frame, style='Dark.TFrame')
         middle_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        # 3a. 왼쪽: 자막 트랙 목록
+        # 3a. 왼쪽: 자막 트랙 목록 (가변 높이)
         left_side = ttk.Frame(middle_frame, style='Dark.TFrame')
         left_side.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         self._build_track_list(left_side)
 
-        # 3b. 오른쪽: 로그 (전체)
+        # 3b. 오른쪽: 로그 (가변 높이, 고정 너비)
         right_side = ttk.Frame(middle_frame, style='Dark.TFrame', width=400)
         right_side.pack(side=tk.RIGHT, fill=tk.BOTH)
-        right_side.pack_propagate(False) # 너비 고정
+        right_side.pack_propagate(False) 
         
         log_container = ttk.Frame(right_side, style='Dark.TFrame')
         log_container.pack(fill=tk.BOTH, expand=True)
         self._build_log(log_container)
-
-        # ── 4. 하단 섹션 (컨트롤 + 광고) ──
-        self._build_controls(main_frame)
-        
-        # ── 5. 최하단 광고 배너 ──
-        self._build_ad_banner(main_frame)
 
     def _build_header(self, parent):
         """헤더 영역 (로고 + 언어 선택 + FFmpeg 상태)"""
@@ -431,29 +430,75 @@ class SubtitleExtractorApp:
         self.extract_btn.pack(side=tk.RIGHT)
 
     def _build_ad_banner(self, parent):
-        """최하단 광고 영역"""
+        """최하단 광고 영역 (슬라이드 배너 구현)"""
         banner_frame = ttk.Frame(parent, style='Dark.TFrame')
-        banner_frame.pack(fill=tk.X, pady=(10, 0))
+        banner_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(10, 0))
         
-        # 이미지 배너
+        self.ad_images = []
+        self.ad_index = 0
+        ad_url = "https://flowstate-timer.netlify.app/"
+        
+        # 이미지 경로 설정 (프로젝트 루트의 img 폴더 기준)
+        if getattr(sys, 'frozen', False):
+            # 빌드된 환경: 내부 리소스 또는 실행 파일 위치 참조
+            base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        else:
+            # 개발 환경: 소스 코드 위치 기반 프로젝트 루트 참조
+            base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            
+        img_paths = [
+            os.path.join(base_path, 'img', 'flowstatetimer', 'banner_auto_900x110.jpg'),
+            os.path.join(base_path, 'img', 'flowstatetimer', 'banner_usage_900x110.jpg')
+        ]
+        
         try:
-            banner_path = os.path.join(os.path.dirname(__file__), 'resources', 'banner.png')
-            if os.path.exists(banner_path):
-                img = Image.open(banner_path)
-                # 728x90 비율 유지하며 리사이즈 (가로 너비에 맞춤)
-                img = img.resize((900, 110), Image.Resampling.LANCZOS)
-                self.ad_img = ImageTk.PhotoImage(img)
-                self.ad_label = tk.Label(banner_frame, image=self.ad_img, bg=self.colors['bg'], cursor="hand2")
+            for path in img_paths:
+                if os.path.exists(path):
+                    img = Image.open(path)
+                    # 900x110 규격으로 리사이즈
+                    img = img.resize((900, 110), Image.Resampling.LANCZOS)
+                    self.ad_images.append(ImageTk.PhotoImage(img))
+            
+            if self.ad_images:
+                self.ad_label = tk.Label(banner_frame, image=self.ad_images[0], bg=self.colors['bg'], cursor="hand2")
                 self.ad_label.pack(fill=tk.X)
-                self.ad_label.bind("<Button-1>", lambda e: os.startfile("https://your-website.com/ai-sync"))
+                self.ad_label.bind("<Button-1>", lambda e: os.startfile(ad_url))
+                
+                # 2장 이상일 경우 로테이션 시작 (5초 간격)
+                if len(self.ad_images) > 1:
+                    self.root.after(5000, self._rotate_ad)
+            else:
+                # 이미지를 찾을 수 없는 경우 기본 리소스 확인 (fallback)
+                banner_path = os.path.join(os.path.dirname(__file__), 'resources', 'banner.png')
+                if os.path.exists(banner_path):
+                    img = Image.open(banner_path)
+                    img = img.resize((900, 110), Image.Resampling.LANCZOS)
+                    self.ad_img = ImageTk.PhotoImage(img)
+                    self.ad_label = tk.Label(banner_frame, image=self.ad_img, bg=self.colors['bg'], cursor="hand2")
+                    self.ad_label.pack(fill=tk.X)
+                    self.ad_label.bind("<Button-1>", lambda e: os.startfile(ad_url))
+                else:
+                    raise FileNotFoundError("광고 이미지를 찾을 수 없습니다.")
+                
         except Exception as e:
             # 이미지 로드 실패 시 텍스트 광고
             self.ad_label = tk.Label(banner_frame, 
-                                   text="[AD] AI 자막 동기화 서비스 출시! - Gemini 3.1 기반 초정밀 매칭",
+                                   text="[AD] 고도의 집중력을 위한 FlowState Timer를 경험해보세요!",
                                    bg=self.colors['surface'], fg=self.colors['primary'],
                                    font=('맑은 고딕', 10, 'bold'), pady=20, cursor="hand2")
             self.ad_label.pack(fill=tk.X)
-            self.ad_label.bind("<Button-1>", lambda e: os.startfile("https://your-website.com/ai-sync"))
+            self.ad_label.bind("<Button-1>", lambda e: os.startfile(ad_url))
+
+    def _rotate_ad(self):
+        """배너 이미지를 순환시킴 [COMPLETED: 2026-04-18]"""
+        if not hasattr(self, 'ad_images') or not self.ad_images:
+            return
+            
+        self.ad_index = (self.ad_index + 1) % len(self.ad_images)
+        self.ad_label.configure(image=self.ad_images[self.ad_index])
+        
+        # 다음 로테이션 예약 (5초 후)
+        self.root.after(5000, self._rotate_ad)
 
     # ═══════════════════════════════════════════
     #  애플리케이션 동기화 및 관리
