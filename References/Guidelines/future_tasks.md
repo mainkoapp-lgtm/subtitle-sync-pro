@@ -354,3 +354,13 @@
 - **수정 과정 및 핵심 코드**:
   - `frontend/src/App.css`: `.settings-bar`와 `.upload-grid`의 가로 길이를 정확하게 일치시키도록 동일한 제약(width: 100%, max-width: 860px)을 부여함. 가운데 정렬(margin 0 auto) 및 여백(box-sizing)을 고려하여 하단의 자막 상자들의 길이와 비율이 완벽하게 일치하도록 스타일 코드 최적화.
 - **결과**: [테스트 필요]
+  
+---
+
+### 2026-04-19: [긴급 보안 패치] API 키 로그 유출 방지 (마스킹 및 로그 API 보호)
+- **문제점**: 사용자가 입력한 API 키가 서버 전송 시 평문으로 로깅되어 `/api/logs` 페이지에서 누구나 실시간으로 타인의 API 키를 열람할 수 있는 치명적 보안 결함 발견.
+- **수정 과정 및 핵심 코드**:
+  - `frontend/src/App.tsx`: `handleSaveSettings` 내 변수 `maskedKey` 생성 시, 키의 앞 4자리만 남기고 모두 별표(`*`)로 가리는 마스킹 문자열 로직 적용.
+  - `backend/main.py`: `get_logs` 및 `clear_logs` 엔드포인트에 `IS_PRODUCTION` 변수를 검사하는 분기문 추가. 배포(Production) 모드일 경우 로그 출력을 원천 차단("Logs are disabled in production mode")하도록 보안 패스 적용.
+  - 추가 점검: `index.html`에 불필요한 메타데이터 등 노출이 없음을 확인, `.gitignore` 내부에 `.env`가 정상 포함됨을 확인.
+- **결과**: [테스트 필요]

@@ -228,10 +228,9 @@ function App() {
     localStorage.setItem('gemini_api_key', apiKey);
     localStorage.setItem('gemini_model', aiModel);
     
-    // 서버 로그에 기록 요청
-    const maskedKey = apiKey || 'None';
+    // 서버 로그에 기록 요청 (보안상 API 키는 제외)
     axios.post('/api/log-action', { 
-      message: t('settingsSavedLog', { model: aiModel, key: maskedKey })
+      message: t('settingsSavedLog', { model: aiModel })
     }).catch(e => console.error("로깅 실패", e));
 
     showToast(t('settingsSavedToast'));

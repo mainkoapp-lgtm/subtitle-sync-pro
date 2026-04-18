@@ -202,6 +202,9 @@ async def verify_reward(ad_payload: Optional[dict] = None):
 
 @api_router.get("/logs")
 def get_logs():
+    if IS_PRODUCTION:
+        return PlainTextResponse("Logs are disabled in production mode for security reasons.")
+    
     if os.path.exists(LOG_FILE_PATH):
         with open(LOG_FILE_PATH, "r", encoding="utf-8") as f:
             lines = f.readlines()
@@ -210,6 +213,9 @@ def get_logs():
 
 @api_router.post("/clear-logs")
 async def clear_logs():
+    if IS_PRODUCTION:
+        return {"status": "error", "message": "Disabled in production"}
+        
     if os.path.exists(LOG_FILE_PATH):
         with open(LOG_FILE_PATH, "w", encoding="utf-8") as f:
             f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - INFO - 로그 초기화됨 (새로고침)\n")
