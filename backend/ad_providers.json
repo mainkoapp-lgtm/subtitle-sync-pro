@@ -1,17 +1,25 @@
 [
   {
+    "name": "Monetag_Direct_1",
+    "type": "link",
+    "url": "https://omg10.com/4/10907361",
+    "id": "10907361",
+    "weight": 45,
+    "description": "Monetag 스마트 링크 1 (확정 수익)"
+  },
+  {
+    "name": "Monetag_Direct_2",
+    "type": "link",
+    "url": "https://omg10.com/4/10907359",
+    "id": "10907359",
+    "weight": 45,
+    "description": "Monetag 스마트 링크 2 (확정 수익)"
+  },
+  {
     "name": "Monetag_Vignette",
     "type": "monetag",
     "id": "10907352",
-    "weight": 100,
-    "description": "Monetag 비네트(전면 반투명) 광고 호출"
-  },
-  {
-    "name": "Coupang_Fallback",
-    "type": "link",
-    "url": "https://link.coupang.com/a/bl6V3C",
-    "id": "coupang_01",
-    "weight": 0,
-    "description": "광고 오류 시 대비용 쿠팡 링크"
+    "weight": 10,
+    "description": "Monetag 전면 비네트 광고"
   }
 ]
