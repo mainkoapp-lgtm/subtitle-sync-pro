@@ -661,28 +661,48 @@ function App() {
                       try {
                         // 백엔드에서 동적 광고 정보 가져오기
                         const adRes = await axios.get('/api/reward/link');
+                        
+                        // [보안/오류 검증] 응답이 HTML(정적 페이지)이거나 데이터가 없는 경우 차단
+                        if (typeof adRes.data !== 'object' || adRes.data.status !== 'success') {
+                          console.error('Invalid Ad API response:', adRes.data);
+                          showToast('광고 서버 연결에 실패했습니다. (API 라우팅 오류)', 'error');
+                          return;
+                        }
+
                         const { type, id, link } = adRes.data;
+                        let adTriggered = false;
                         
                         if (type === 'monetag' && id) {
-                          // 1. Monetag ID 기반 자동 호출
                           const monetagFunc = (window as any)[`show_${id}`];
                           if (monetagFunc) {
                             await monetagFunc();
-                          } else {
-                            // 함수가 없으면(차단 등) 링크로 대체 시도
-                            if (link) window.open(link, '_blank');
+                            adTriggered = true;
+                          } else if (link) {
+                            window.open(link, '_blank');
+                            adTriggered = true;
                           }
                         } else if (link) {
-                          // 2. 일반 링크(쿠팡 등) 방식
                           window.open(link, '_blank');
+                          adTriggered = true;
                         }
                         
-                        // 광고 실행 후 토큰 검증 및 싱크 시작
-                        const res = await axios.post('/api/reward/verify');
-                        if (res.data.status === 'success') {
-                          setShowAdModal(false);
-                          startSyncWithToken(res.data.token);
+                        if (!adTriggered) {
+                          showToast('광고를 불러올 수 없습니다. 광고 차단기(AdBlock)를 해제해주세요.', 'error');
+                          return;
                         }
+
+                        // 사용자 인지를 위해 1.5초 지연 후 티켓 검증 및 싱크 시작
+                        setTimeout(async () => {
+                          try {
+                            const res = await axios.post('/api/reward/verify');
+                            if (res.data.status === 'success') {
+                              setShowAdModal(false);
+                              startSyncWithToken(res.data.token);
+                            }
+                          } catch (verifyErr) {
+                            showToast(t('logFetchFailToast'), 'error');
+                          }
+                        }, 1500);
                       } catch (e) {
                         showToast(t('logFetchFailToast'), 'error');
                       }
