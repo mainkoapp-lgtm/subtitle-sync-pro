@@ -9,5 +9,12 @@
     "title": "✅ 시스템 점검 완료",
     "content": "킬 스위치 테스트가 성공적으로 완료되어 모든 기능이 정상 복구되었습니다.",
     "show_once": true
+  },
+  "ad_config": {
+    "active": true,
+    "ad_id": "banner_test_naver",
+    "image_url": "https://subfast-manager.web.app/test_ad.jpg",
+    "target_url": "https://www.naver.com",
+    "cf_tracker_url": "https://ad-tracker.misuni0313.workers.dev"
   }
 }

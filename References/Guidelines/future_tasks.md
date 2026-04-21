@@ -382,3 +382,21 @@
 - **문제점**: 사용자가 제공한 sample 파일을 분석한 결과, 1) SMI 자막 파싱 시 \&nbsp; 블록을 무시하여 종료 시간이 비정상적으로 길게 잡히는 버그(subtitle stretching), 2) AI 매칭(유출된 API 키나 한도초과 등) 실패 시 묵시적으로 오류를 삼키면서 기본 알고리즘으로 넘어가, 언어가 다를 경우 최소 유사도 0%로 인해 '자막 매칭율이 너무 낮습니다'라는 엉뚱한 에러가 발생하는 문제 발견.
 - **수정 과정 및 핵심 코드**: ackend/aligner.py 수정. parse_smi에서 빈 블록이라도 sync_points 인덱스를 통해 정확한 종료 시간(end_ms)을 계산하도록 변경. gemini_batch_match에서 401, 403, PERMISSION_DENIED 등에 대해 예외를 삼키지 않고 ValueError로 명시적으로 프론트엔드로 전달하도록 수정.
 - **결과**: [테스트 필요]
+
+### 2026-04-20: 설정 창(모달) 통합 및 다국어(ja, zh, hi) 지원 추가
+- **문제점**: 화면 상단에 언어변경, FFmpeg 설정 등 너무 많은 버튼이 노출되어 어수선하고, 다국어 지원 확장이 필요함.
+- **수정 과정 및 핵심 코드**: 
+  - gui.py 수정: 기존 라디오버튼 및 FFmpeg 변경/상태 라벨 삭제 후 단일 tn_settings 추가.
+  - pp_updater.py 수정: TRANSLATIONS 딕셔너리에 일본어(ja), 중국어(zh), 힌디어(hi) 및 설정 관련 텍스트 추가.
+  - gui.py에 _show_settings_modal 구현: 언어 드롭다운 패널(Combobox)과 FFmpeg 경로 설정, https://subtitle.mainko.net/ 이동 버튼을 모달 UI에 통합시킴.
+- **결과**: [테스트 필요]
+
+### 2026-04-20: 버튼 UI 디자인 개선(Dark Mode 최적화)
+- **문제점**: 기본 ttk 버튼 스타일로 인해 UI가 다소 어수선하고 밋밋하며, 다크 테마와의 통일성이 떨어짐.
+- **수정 과정 및 핵심 코드**: gui.py의 _setup_styles 내에서 기본 TButton, Action.TButton, Small.TButton에 각각 ackground, oreground를 적용하고 map 속성으로 호버(Hover: active) 효과를 추가하여 현대적인 디자인으로 개편.
+- **결과**: [테스트 필요]
+
+### 2026-04-20: 작업 표시줄 아이콘 (AppUserModelID) 최적화
+- **문제점**: Windows 환경에서 Python 스크립트로 동작하는 특성상 데스크톱 작업 표시줄에 프로그램 전용 아이콘이 아닌 기본 Python 로고가 노출됨.
+- **수정 과정 및 핵심 코드**: gui.py의 main() 함수에 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID 코드를 추가하여 Windows에서 해당 프로세스를 독립적인 앱으로 인식하고 전용 아이콘(icon.ico)을 표시하도록 조치.
+- **결과**: [테스트 필요]

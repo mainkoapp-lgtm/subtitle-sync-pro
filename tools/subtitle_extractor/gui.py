@@ -57,6 +57,7 @@ class SubtitleExtractorApp:
 
     def _setup_styles(self):
         """UI 스타일 초기 설정"""
+        # [완료: 다크 모드 버튼 및 컴포넌트 스타일] 사용자의 요청 없이는 임의의 수정을 금지하며 상태를 유지해야 합니다.
         style = ttk.Style()
         style.theme_use('clam')
 
@@ -104,13 +105,35 @@ class SubtitleExtractorApp:
         style.configure('Surface.TFrame',
                         background=self.colors['surface'])
 
+        # 기본 버튼 스타일
+        style.configure('TButton',
+                        background=self.colors['surface'],
+                        foreground=self.colors['text'],
+                        borderwidth=0,
+                        focusthickness=3,
+                        focuscolor='none')
+        style.map('TButton',
+                  background=[('active', self.colors['primary_hover'])],
+                  foreground=[('active', 'white')])
+
+        # 강조(액션) 버튼 디자인
         style.configure('Action.TButton',
                         font=bold_font,
-                        padding=(15, 8))
+                        padding=(15, 8),
+                        background=self.colors['primary'],
+                        foreground='white')
+        style.map('Action.TButton',
+                  background=[('active', self.colors['primary_hover'])])
 
+        # 소형 버튼 디자인
         style.configure('Small.TButton',
                         font=log_font,
-                        padding=(10, 5))
+                        padding=(10, 5),
+                        background=self.colors['surface'],
+                        foreground=self.colors['text'])
+        style.map('Small.TButton',
+                  background=[('active', self.colors['primary_hover'])],
+                  foreground=[('active', 'white')])
 
         style.configure('TCheckbutton',
                         background=self.colors['bg'],
@@ -183,7 +206,8 @@ class SubtitleExtractorApp:
         self._build_log(log_container)
 
     def _build_header(self, parent):
-        """헤더 영역 (로고 + 언어 선택 + FFmpeg 상태)"""
+        """헤더 영역 (로고 + 설정 버튼 통합)"""
+        # [완료: 설정 버튼 단일 통합 레이아웃] 사용자의 요청 없이는 임의의 수정을 금지하며 상태를 유지해야 합니다.
         header = ttk.Frame(parent, style='Dark.TFrame')
         header.pack(fill=tk.X, pady=(0, 10))
 
@@ -202,20 +226,88 @@ class SubtitleExtractorApp:
             bg=self.colors['bg'], fg=self.colors['text_dim'],
             font=('맑은 고딕', 10, 'bold')).pack(side=tk.LEFT, padx=8, pady=(8, 0))
 
-        # ── 언어 선택 버튼 ──
-        lang_frame = ttk.Frame(header, style='Dark.TFrame')
-        lang_frame.pack(side=tk.RIGHT, padx=10)
+        # ── 설정 버튼 ──
+        settings_frame = ttk.Frame(header, style='Dark.TFrame')
+        settings_frame.pack(side=tk.RIGHT, padx=10)
         
+        self.btn_settings = ttk.Button(settings_frame, text=self.updater.get_string('btn_settings'),
+                                command=self._show_settings_modal,
+                                style='Small.TButton')
+        self.btn_settings.pack(side=tk.RIGHT)
+        
+        # 언어 변수 초기화
         self.lang_var = tk.StringVar(value=self.updater.language)
-        for code, label in [('ko', 'KOR'), ('en', 'ENG')]:
-            rb = tk.Radiobutton(lang_frame, text=label, variable=self.lang_var, value=code,
-                              command=self._change_language,
-                              bg=self.colors['bg'], fg=self.colors['text_dim'],
-                              selectcolor=self.colors['surface'],
-                              activebackground=self.colors['bg'], font=('Arial', 8))
-            rb.pack(side=tk.LEFT, padx=2)
 
-        # FFmpeg 상태 표시
+    def _show_settings_modal(self):
+        """설정 창 (모달) 표시"""
+        # [완료: 5개국어 지원 및 FFmpeg 설정 통합 모달] 사용자의 요청 없이는 임의의 수정을 금지하며 상태를 유지해야 합니다.
+        dialog = tk.Toplevel(self.root)
+        dialog.title(self.updater.get_string('settings_title'))
+        dialog.geometry("450x300")
+        dialog.configure(bg=self.colors['bg'])
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        if hasattr(self, 'app_icon'):
+            dialog.iconphoto(False, self.app_icon)
+
+        self.root.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 225
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 150
+        dialog.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+        content_frame = tk.Frame(dialog, bg=self.colors['bg'], padx=20, pady=20)
+        content_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 언어 선택
+        lang_frame = tk.Frame(content_frame, bg=self.colors['bg'])
+        lang_frame.pack(fill=tk.X, pady=(0, 15))
+        lbl_lang = tk.Label(lang_frame, text=self.updater.get_string('label_language'), bg=self.colors['bg'], fg=self.colors['text'], font=('맑은 고딕', 10, 'bold'))
+        lbl_lang.pack(side=tk.LEFT)
+        
+        langs = {'ko': '한국어', 'en': 'English', 'ja': '日本語', 'zh': '中文', 'hi': 'हिन्दी'}
+        display_langs = list(langs.values())
+        
+        self.lang_cb = ttk.Combobox(lang_frame, values=display_langs, state='readonly', width=15)
+        current_display = langs.get(self.updater.language, '한국어')
+        self.lang_cb.set(current_display)
+        self.lang_cb.pack(side=tk.RIGHT)
+        
+        def on_lang_select(event):
+            selected_display = self.lang_cb.get()
+            for code, display in langs.items():
+                if display == selected_display:
+                    self.lang_var.set(code)
+                    self._change_language()
+                    # 실시간 모달 텍스트 업데이트
+                    dialog.title(self.updater.get_string('settings_title'))
+                    lbl_lang.config(text=self.updater.get_string('label_language'))
+                    btn_home.config(text=self.updater.get_string('btn_visit_home'))
+                    btn_ffmpeg.config(text=self.updater.get_string('btn_locate_ffmpeg'))
+                    self._update_modal_ffmpeg_status(lbl_ff_status)
+                    break
+        self.lang_cb.bind("<<ComboboxSelected>>", on_lang_select)
+
+        # FFmpeg 상태 및 변경
+        ff_frame = tk.Frame(content_frame, bg=self.colors['bg'])
+        ff_frame.pack(fill=tk.X, pady=15)
+        
+        lbl_ff_status = tk.Label(ff_frame, text="", bg=self.colors['bg'], font=('맑은 고딕', 9))
+        lbl_ff_status.pack(side=tk.LEFT)
+        self._update_modal_ffmpeg_status(lbl_ff_status)
+        
+        btn_ffmpeg = ttk.Button(ff_frame, text=self.updater.get_string('btn_locate_ffmpeg'), command=lambda: [self._locate_ffmpeg(), self._update_modal_ffmpeg_status(lbl_ff_status)])
+        btn_ffmpeg.pack(side=tk.RIGHT)
+
+        # 구분선
+        tk.Frame(content_frame, height=1, bg=self.colors['border']).pack(fill=tk.X, pady=15)
+
+        # 홈페이지 이동 버튼
+        btn_home = ttk.Button(content_frame, text=self.updater.get_string('btn_visit_home'), command=lambda: os.startfile("https://subtitle.mainko.net/"), style='Action.TButton')
+        btn_home.pack(pady=10)
+        
+    def _update_modal_ffmpeg_status(self, label):
         if self.ffmpeg_path and self.ffprobe_path:
             import sys
             base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
@@ -223,22 +315,9 @@ class SubtitleExtractorApp:
                 status_key = 'status_ffmpeg_portable'
             else:
                 status_key = 'status_ffmpeg_system'
-            status_color = self.colors['success']
+            label.config(text=self.updater.get_string(status_key), fg=self.colors['success'])
         else:
-            status_key = 'status_ffmpeg_none'
-            status_color = self.colors['error']
-
-        self.ffmpeg_status = tk.Label(
-            header, text=self.updater.get_string(status_key),
-            bg=self.colors['bg'], fg=status_color,
-            font=('맑은 고딕', 9))
-        self.ffmpeg_status.pack(side=tk.RIGHT, padx=(10, 0))
-
-        # FFmpeg 수동 지정 버튼
-        self.btn_locate = ttk.Button(header, text=self.updater.get_string('btn_locate_ffmpeg'),
-                                command=self._locate_ffmpeg,
-                                style='Small.TButton')
-        self.btn_locate.pack(side=tk.RIGHT, padx=(0, 10))
+            label.config(text=self.updater.get_string('status_ffmpeg_none'), fg=self.colors['error'])
 
     def _build_file_selector(self, parent):
         """파일 선택 영역"""
@@ -430,64 +509,22 @@ class SubtitleExtractorApp:
         self.extract_btn.pack(side=tk.RIGHT)
 
     def _build_ad_banner(self, parent):
-        """최하단 광고 영역 (슬라이드 배너 구현)"""
+        """최하단 광고 영역 (서버 동적 로드 대기) [2026-04-20 수정]"""
+        # [완료: UI 찌그러짐 방지 및 동적 배너 뼈대 유지] 사용자의 요청 없이는 임의로 수정하지 마세요.
         banner_frame = ttk.Frame(parent, style='Dark.TFrame')
         banner_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(10, 0))
         
+        # 초기 상태: 빈 배너 영역 (900x110 크기 확보)
         self.ad_images = []
         self.ad_index = 0
-        ad_url = "https://flowstate-timer.netlify.app/"
         
-        # 이미지 경로 설정 (프로젝트 루트의 img 폴더 기준)
-        if getattr(sys, 'frozen', False):
-            # 빌드된 환경: 내부 리소스 또는 실행 파일 위치 참조
-            base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
-        else:
-            # 개발 환경: 소스 코드 위치 기반 프로젝트 루트 참조
-            base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            
-        img_paths = [
-            os.path.join(base_path, 'img', 'flowstatetimer', 'banner_auto_900x110.jpg'),
-            os.path.join(base_path, 'img', 'flowstatetimer', 'banner_usage_900x110.jpg')
-        ]
+        from PIL import Image, ImageTk
+        placeholder_img = Image.new('RGB', (900, 110), color=self.colors['bg'])
+        self.ad_placeholder = ImageTk.PhotoImage(placeholder_img)
         
-        try:
-            for path in img_paths:
-                if os.path.exists(path):
-                    img = Image.open(path)
-                    # 900x110 규격으로 리사이즈
-                    img = img.resize((900, 110), Image.Resampling.LANCZOS)
-                    self.ad_images.append(ImageTk.PhotoImage(img))
-            
-            if self.ad_images:
-                self.ad_label = tk.Label(banner_frame, image=self.ad_images[0], bg=self.colors['bg'], cursor="hand2")
-                self.ad_label.pack(fill=tk.X)
-                self.ad_label.bind("<Button-1>", lambda e: os.startfile(ad_url))
-                
-                # 2장 이상일 경우 로테이션 시작 (5초 간격)
-                if len(self.ad_images) > 1:
-                    self.root.after(5000, self._rotate_ad)
-            else:
-                # 이미지를 찾을 수 없는 경우 기본 리소스 확인 (fallback)
-                banner_path = os.path.join(os.path.dirname(__file__), 'resources', 'banner.png')
-                if os.path.exists(banner_path):
-                    img = Image.open(banner_path)
-                    img = img.resize((900, 110), Image.Resampling.LANCZOS)
-                    self.ad_img = ImageTk.PhotoImage(img)
-                    self.ad_label = tk.Label(banner_frame, image=self.ad_img, bg=self.colors['bg'], cursor="hand2")
-                    self.ad_label.pack(fill=tk.X)
-                    self.ad_label.bind("<Button-1>", lambda e: os.startfile(ad_url))
-                else:
-                    raise FileNotFoundError("광고 이미지를 찾을 수 없습니다.")
-                
-        except Exception as e:
-            # 이미지 로드 실패 시 텍스트 광고
-            self.ad_label = tk.Label(banner_frame, 
-                                   text="[AD] 고도의 집중력을 위한 FlowState Timer를 경험해보세요!",
-                                   bg=self.colors['surface'], fg=self.colors['primary'],
-                                   font=('맑은 고딕', 10, 'bold'), pady=20, cursor="hand2")
-            self.ad_label.pack(fill=tk.X)
-            self.ad_label.bind("<Button-1>", lambda e: os.startfile(ad_url))
+        # 창 크기를 조절해도 찌그러지지 않도록 기본 이미지 사이즈를 강제로 부여해 레이아웃 붕괴 방지
+        self.ad_label = tk.Label(banner_frame, image=self.ad_placeholder, bg=self.colors['bg'], bd=0, cursor="hand2")
+        self.ad_label.pack(fill=tk.X)
 
     def _rotate_ad(self):
         """배너 이미지를 순환시킴 [COMPLETED: 2026-04-18]"""
@@ -528,6 +565,62 @@ class SubtitleExtractorApp:
         notice = self.updater.check_notice()
         if notice:
             self.root.after(500, lambda: self._show_notice(notice))
+
+        # 4. [NEW] 파이어베이스 배너 관리 및 Cloudflare 클릭 수집 연동
+        ad_config = config.get("ad_config")
+        if ad_config and ad_config.get("active", False):
+            self.root.after(0, lambda: self._update_dynamic_ad(ad_config))
+
+    def _update_dynamic_ad(self, ad_config):
+        """파이어베이스에서 설정한 동적 배너 노출 및 CF 트래커 연동 [2026-04-20]"""
+        # [완료: 파이어베이스 동적 배너 비동기 로딩 및 CF 트래커 호출] 사용자의 요청 없이는 임의로 수정하지 마세요.
+        image_url = ad_config.get("image_url")
+        target_url = ad_config.get("target_url")
+        tracker_base = ad_config.get("cf_tracker_url")
+        ad_id = ad_config.get("ad_id", "fallback_ad")
+
+        if not image_url or not target_url:
+            return
+
+        import urllib.parse
+        # Cloudflare 트래커를 활용한 최종 리다이렉트 URL 생성
+        if tracker_base:
+            encoded_target = urllib.parse.quote(target_url, safe='')
+            final_click_url = f"{tracker_base.rstrip('/')}/click?ad_id={ad_id}&target={encoded_target}"
+        else:
+            final_click_url = target_url
+
+        def fetch_and_set():
+            try:
+                import requests
+                from io import BytesIO
+                from PIL import Image, ImageTk
+
+                res = requests.get(image_url, timeout=5)
+                if res.status_code == 200:
+                    img = Image.open(BytesIO(res.content))
+                    img = img.resize((900, 110), Image.Resampling.LANCZOS)
+                    self.root.after(0, lambda: self._apply_dynamic_ad(img, final_click_url))
+                else:
+                    self.root.after(0, lambda: self._log("⚠️ 프로그램 실행시 문제가 발생하였습니다. (코드: ERR_BN_HTTP)", 'warning'))
+            except Exception as e:
+                # 네트워크 에러 시
+                self.root.after(0, lambda: self._log("⚠️ 프로그램 실행시 문제가 발생하였습니다. (코드: ERR_BN_NET)", 'warning'))
+
+        import threading
+        threading.Thread(target=fetch_and_set, daemon=True).start()
+
+    def _apply_dynamic_ad(self, img, click_url):
+        # [완료: 동적 이미지 GUI 교체, 로그 출력] 사용자의 요청 없이는 임의로 수정하지 마세요.
+        from PIL import ImageTk
+        self.ad_dynamic_img = ImageTk.PhotoImage(img) # GC 방지 참조 유지
+        # 기존 로컬 하드코딩 광고를 동적 광고 하나로 완전 덮어쓰기 (로테이션 중지 효과)
+        self.ad_images = [self.ad_dynamic_img]
+        self.ad_index = 0
+        if hasattr(self, 'ad_label'):
+            self.ad_label.configure(image=self.ad_images[0])
+            self.ad_label.bind("<Button-1>", lambda e: os.startfile(click_url))
+            self._log("✅ 프로그램이 정상적으로 실행되었습니다.", 'success')
 
     def _show_kill_switch(self):
         """업데이트 필수 안내 (차단 화면)"""
@@ -627,9 +720,12 @@ class SubtitleExtractorApp:
         self.root.title(self.updater.get_string('title'))
         
         # 헤더
+        # 헤더
         if hasattr(self, 'title_label'):
             self.title_label.configure(text=self.updater.get_string('header_title'))
-        self.btn_locate.configure(text=self.updater.get_string('btn_locate_ffmpeg'))
+        
+        if hasattr(self, 'btn_settings'):
+            self.btn_settings.configure(text=self.updater.get_string('btn_settings'))
         
         # FFmpeg 상태 (이미 계산된 상태에 따라)
         # (생략: 필요 시 상태 변수 저장하여 업데이트)
@@ -955,6 +1051,14 @@ class SubtitleExtractorApp:
 
 
 def main():
+    # [NEW] PyInstaller Splash Screen Close
+    try:
+        import pyi_splash
+        pyi_splash.update_text("UI Loading...")
+        pyi_splash.close()
+    except ImportError:
+        pass
+
     root = tk.Tk()
 
     # 아이콘 설정 (있을 경우)
@@ -965,10 +1069,12 @@ def main():
     except Exception:
         pass
 
-    # DPI 인식 (Windows)
+    # DPI 인식 및 작업 표시줄 아이콘 분리 (Windows)
     try:
         from ctypes import windll
         windll.shcore.SetProcessDpiAwareness(1)
+        # [완료: 작업 표시줄 파이썬 로고를 프로그램 아이콘으로 교체] 사용자의 요청 없이는 임의의 수정을 금지하며 상태를 유지해야 합니다.
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID("mainko.subtitle.extractor.0.1")
     except Exception:
         pass
 

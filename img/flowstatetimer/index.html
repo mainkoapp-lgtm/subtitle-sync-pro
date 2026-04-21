@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowStateTimer - Premium Banner</title>
+    <!-- 
+        완료 된 코드입니다. 
+        사용자의 요청 없이는 임의로 수정하지 마세요.
+    -->
+    <style>
+        :root {
+            --primary-bg: #0f172a;
+            --accent-glow: #38bdf8;
+            --text-heading: #f8fafc;
+            --text-body: #94a3b8;
+            --btn-start: #0ea5e9;
+            --btn-end: #2563eb;
+            --transition-speed: 0.8s;
+        }
+
+        @font-face {
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard-dynamic-subset.css');
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background: transparent;
+            overflow: hidden;
+        }
+
+        .banner-container {
+            width: 900px;
+            height: 110px;
+            background: var(--primary-bg);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            padding: 0 50px;
+            border-radius: 4px;
+            box-shadow: inset 0 0 40px rgba(56, 189, 248, 0.1);
+        }
+
+        /* Animated background mesh effect */
+        .banner-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+            animation: rotateBg 20s linear infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes rotateBg {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .slides-container {
+            flex: 1;
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .slide {
+            position: absolute;
+            width: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--transition-speed) ease-in-out, transform var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(10px);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            z-index: 2;
+        }
+
+        .slide h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-heading);
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+        }
+
+        .slide p {
+            font-size: 15px;
+            font-weight: 400;
+            color: var(--text-body);
+            white-space: nowrap;
+        }
+
+        .cta-section {
+            position: relative;
+            z-index: 3;
+            margin-left: 20px;
+        }
+
+        .cta-button {
+            background: linear-gradient(135deg, var(--btn-start) 0%, var(--btn-end) 100%);
+            color: #fff;
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            border: none;
+            cursor: default;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+        }
+
+        /* Progress indicator at bottom */
+        .progress-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: rgba(56, 189, 248, 0.2);
+            width: 100%;
+            z-index: 4;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--btn-start);
+            box-shadow: 0 0 10px var(--btn-start);
+        }
+    </style>
+</head>
+<body>
+    <div class="banner-container">
+        <div class="slides-container">
+            <div class="slide active">
+                <h2>시간을 지배하는 기술, FlowStateTimer</h2>
+                <p>PC 사용 시간 자동 측정 및 정밀한 몰입 관리</p>
+            </div>
+            <div class="slide">
+                <h2>완벽한 몰입을 위한 기록의 자동화</h2>
+                <p>당신의 생산성을 데이터로 증명하고 가치를 높이세요</p>
+            </div>
+        </div>
+        <div class="cta-section">
+            <button type="button" class="cta-button">무료 다운로드 클릭</button>
+        </div>
+        <div class="progress-indicator">
+            <div class="progress-bar"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const slides = document.querySelectorAll('.slide');
+            const progressBar = document.querySelector('.progress-bar');
+            let currentIndex = 0;
+            const intervalTime = 10000; // 10 seconds
+
+            function startProgress() {
+                progressBar.style.transition = 'none';
+                progressBar.style.width = '0%';
+                
+                setTimeout(() => {
+                    progressBar.style.transition = `width ${intervalTime}ms linear`;
+                    progressBar.style.width = '100%';
+                }, 50);
+            }
+
+            function cycleSlides() {
+                // Fade out current slide
+                slides[currentIndex].classList.remove('active');
+                
+                // Calculate next index
+                currentIndex = (currentIndex + 1) % slides.length;
+                
+                // Fade in next slide after a short delay to ensure clean transition
+                setTimeout(() => {
+                    slides[currentIndex].classList.add('active');
+                }, 100);
+
+                startProgress();
+            }
+
+            // Initial start
+            startProgress();
+            setInterval(cycleSlides, intervalTime);
+        });
+    </script>
+</body>
+</html>
