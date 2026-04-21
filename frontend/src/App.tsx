@@ -304,32 +304,32 @@ function App() {
     if (!refFile || !targetFile) return;
 
     if (isProduction) {
-      // 배포 모드: 실제 광고 게이트웨이 작동
+      // 배포 모드: 실제 광고 게이트웨이 작동 (Monetag 전면 광고 우선)
       setShowAdModal(true);
       setAdStatus('loading');
-      setAdCountdown(8); // 조금 더 긴 체류 시간 유도
+      setAdCountdown(5); 
 
-      // 구글 보상형 광고 로드 시도
-      if ((window as any).googletag && (window as any).rewardedSlot) {
+      // Monetag 전면 광고 함수 확인 (Zone ID: 232159)
+      const monetagShowAd = (window as any).show_232159;
+
+      if (monetagShowAd) {
         setAdStatus('ready');
-        (window as any).googletag.cmd.push(() => {
-          (window as any).googletag.pubads().addEventListener('rewardedSlotGranted', async () => {
-            setAdStatus('failed'); // 완료 상태로 UI 전환
-            try {
-              const res = await axios.post('/api/reward/verify');
-              if (res.data.status === 'success') {
-                setShowAdModal(false);
-                startSyncWithToken(res.data.token);
-              }
-            } catch (e) {
-              showToast(t('logFetchFailToast'), 'error'); // 토큰 요청 실패 시
-              setShowAdModal(false);
-            }
-          });
-          (window as any).googletag.display((window as any).rewardedSlot);
-        });
+        try {
+          // Monetag 보상형 인터스티셜 실행
+          await monetagShowAd();
+          
+          // 광고 시청 완료 후 서버에 토큰 요청
+          const res = await axios.post('/api/reward/verify');
+          if (res.data.status === 'success') {
+            setShowAdModal(false);
+            startSyncWithToken(res.data.token);
+          }
+        } catch (e) {
+          console.error("Monetag 광고 실행 중 오류:", e);
+          setAdStatus('idle'); // 오류 시 쿠팡 브릿지로 대체
+        }
       } else {
-        // [수수료 모델] 구글 광고 로드 실패 시 쿠팡 파트너스 브릿지 활성화
+        // Monetag 로드 실패(AdBlock 등) 시 쿠팡 파트너스 브릿지 활성화
         setAdStatus('idle'); 
         const timer = setInterval(() => {
           setAdCountdown(prev => {
@@ -626,9 +626,10 @@ function App() {
                 <div style={{ marginTop: '24px' }}>
                   <button 
                     className="sync-btn" 
-                    style={{ width: '100%', justifyContent: 'center', background: '#e11d48' }} // 쿠팡스러운 레드
+                    style={{ width: '100%', justifyContent: 'center', background: '#e11d48' }} 
                     onClick={async () => {
-                      window.open('https://flowstate-timer.netlify.app/', '_blank'); 
+                      // Monetag 실패 시의 수동 브릿지 (쿠팡 파트너스 등)
+                      window.open('https://link.coupang.com/a/bl6V3C', '_blank'); 
                       try {
                         const res = await axios.post('/api/reward/verify');
                         if (res.data.status === 'success') {
@@ -636,7 +637,7 @@ function App() {
                           startSyncWithToken(res.data.token);
                         }
                       } catch (e) {
-                        showToast('보상 검증에 실패했습니다.', 'error');
+                        showToast(t('logFetchFailToast'), 'error');
                       }
                     }}
                   >
