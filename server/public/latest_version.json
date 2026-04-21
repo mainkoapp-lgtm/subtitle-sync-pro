@@ -12,9 +12,10 @@
   },
   "ad_config": {
     "active": true,
-    "ad_id": "banner_test_naver",
-    "image_url": "https://subfast-manager.web.app/test_ad.jpg",
-    "target_url": "https://www.naver.com",
+    "ad_id": "flowstate_timer_v1",
+    "image_url": "https://subfast-manager.web.app/flowstate_banner.jpg",
+    "html_url": "https://subfast-manager.web.app/index.html",
+    "target_url": "https://flowstate-timer.netlify.app/",
     "cf_tracker_url": "https://ad-tracker.misuni0313.workers.dev"
   }
 }

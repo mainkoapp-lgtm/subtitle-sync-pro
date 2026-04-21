@@ -1,0 +1,576 @@
+:root {
+  --bg: #1e1e2e;
+  --surface: #2d2d44;
+  --primary: #7c3aed;
+  --primary-hover: #6d28d9;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --border: #3d3d5c;
+}
+
+body {
+  margin: 0;
+  font-family: "Malgun Gothic", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  overflow-y: hidden; /* App like feel */
+}
+
+/* Layout */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  position: relative;
+  overflow-x: hidden; /* Prevent horizontal scrollbars */
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.header-left h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.2rem;
+}
+
+.version-badge {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-weight: bold;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+  gap: 20px;
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text);
+}
+
+button:hover {
+  opacity: 0.8;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 12px 24px;
+  font-size: 1rem;
+}
+
+.btn-icon {
+  background-color: var(--surface);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.btn-sm {
+  background-color: var(--surface);
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+}
+
+.btn-link {
+  color: var(--primary);
+  text-decoration: underline;
+  padding: 10px 0;
+  width: 100%;
+  cursor: pointer;
+}
+
+.homepage-link {
+  color: #a78bfa !important; /* Brighter purple for visibility */
+  font-weight: 500;
+  display: block;
+  text-align: center;
+  margin-top: 15px;
+}
+
+.homepage-link:hover {
+  color: #c4b5fd !important;
+  text-decoration: none;
+}
+
+/* Tracks */
+.tracks-container {
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 200px;
+}
+
+.tracks-header {
+  padding: 15px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+}
+
+.tracks-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  margin-right: 20px;
+}
+
+.track-controls {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.track-controls button {
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 85px; /* Keep consistent proportion regardless of filename length */
+}
+
+.tracks-list {
+  list-style: none;
+  padding: 10px;
+  margin: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.track-item {
+  background-color: var(--surface);
+  border-radius: 6px;
+  padding: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.track-item:hover {
+  border-color: var(--primary);
+}
+
+.codec-badge {
+  background-color: var(--primary);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  margin: 0 5px;
+}
+
+.empty-text {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 40px;
+}
+
+/* Custom Checkbox */
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.95rem;
+}
+
+.checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  height: 20px;
+  width: 20px;
+  background-color: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkbox-container input:checked ~ .checkmark {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+
+/* Footer & Ad */
+.app-footer {
+  background-color: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.extract-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: var(--surface);
+}
+
+.progress-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+.ad-container {
+  display: flex;
+  justify-content: center;
+  background-color: var(--bg);
+  width: 100%;
+  overflow: hidden;
+}
+
+.dynamic-banner {
+  width: 900px;
+  height: 110px;
+  min-width: 900px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: cover;
+  border: none;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90%;
+  padding: 25px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--surface);
+  padding-bottom: 15px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.btn-close {
+  background: transparent;
+  padding: 4px;
+}
+
+.settings-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-group label {
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+select {
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.ff-status.valid {
+  color: var(--success);
+  font-weight: bold;
+}
+
+.hint-text {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.kill-switch {
+  text-align: center;
+}
+
+.kill-switch h2 {
+  color: var(--error);
+}
+
+/* Drag overlay */
+.drag-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(124, 58, 237, 0.9);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  pointer-events: none;
+}
+
+.drag-active {
+  border: 4px dashed var(--primary);
+}
+
+/* Animations */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+.spinning-slow {
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Save Options Styling */
+.save-options {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.radio-group {
+  display: flex;
+  gap: 15px;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  transition: color 0.2s;
+}
+
+.radio-item:hover {
+  color: var(--text);
+}
+
+.radio-item input[type="radio"] {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.btn-folder {
+  background: rgba(147, 51, 234, 0.2);
+  border: 1px dashed var(--primary);
+  color: var(--primary-light);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-folder:hover {
+  background: rgba(147, 51, 234, 0.3);
+}
+
+.extract-options-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+}
+
+.format-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.select-format {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  padding: 4px 12px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.select-format:focus {
+  border-color: var(--primary);
+  background: rgba(147, 51, 234, 0.1);
+}
+
+.select-format option {
+  background: #1a1a2e;
+  color: var(--text);
+}
+
+/* Progress Bar Styling */
+.progress-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 20px;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.progress-text {
+  color: var(--success);
+  font-weight: 500;
+}
+
+.progress-percent {
+  color: var(--text);
+  font-weight: bold;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--success));
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(147, 51, 234, 0.5);
+}
+
+/* Toast Styling */
+.toast-container {
+  position: fixed;
+  bottom: 130px; /* Above the banner */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5000;
+  pointer-events: none;
+}
+
+.toast-content {
+  background: rgba(34, 197, 94, 0.95); /* Semi-transparent green */
+  color: white;
+  padding: 10px 25px;
+  border-radius: 50px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  font-weight: bold;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.animation-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideUp {
+  from { transform: translate(-50%, 50px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* Cleanup old modal styles */
+.result-modal, .result-icon-container, .result-circle {
+  display: none;
+}

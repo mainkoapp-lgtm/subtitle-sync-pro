@@ -154,8 +154,7 @@
     </style>
 </head>
 <body>
-    <a href="https://flowstate-timer.netlify.app/" target="_blank" style="text-decoration: none;">
-        <div class="banner-container" style="cursor: pointer;">
+    <div class="banner-container">
         <div class="slides-container">
             <div class="slide active">
                 <h2>시간을 지배하는 기술, FlowStateTimer</h2>
@@ -167,13 +166,12 @@
             </div>
         </div>
         <div class="cta-section">
-            <button type="button" class="cta-button" style="cursor: pointer;">무료 다운로드 클릭</button>
+            <button type="button" class="cta-button">무료 다운로드 클릭</button>
         </div>
         <div class="progress-indicator">
             <div class="progress-bar"></div>
         </div>
     </div>
-    </a>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -210,15 +208,6 @@
             // Initial start
             startProgress();
             setInterval(cycleSlides, intervalTime);
-
-            // Notify parent to open URLs (solve Tauri iframe click issue)
-            document.addEventListener('click', (e) => {
-                const link = e.target.closest('a');
-                if (link && link.getAttribute('target') === '_blank') {
-                    e.preventDefault();
-                    window.parent.postMessage({ type: 'open_url', url: link.href }, '*');
-                }
-            });
         });
     </script>
 </body>

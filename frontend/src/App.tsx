@@ -13,6 +13,24 @@ const KoreanLangIcon = ({ size, color }: { size: number, color: string }) => (
 import { useTranslation, setLanguage, Language } from './i18n';
 import './App.css';
 import CoupangDynamicBanner from './components/CoupangDynamicBanner';
+import ClickmonBanner from './components/ClickmonBanner';
+
+// Monetag 다이렉트 링크 리스트 (총 11개)
+const MONETAG_AD_LINKS = [
+  "https://omg10.com/4/10907359",
+  "https://omg10.com/4/10907361",
+  "https://omg10.com/4/10908578",
+  "https://omg10.com/4/10908582",
+  "https://omg10.com/4/10908583",
+  "https://omg10.com/4/10908584",
+  "https://omg10.com/4/10908585",
+  "https://omg10.com/4/10908590",
+  "https://omg10.com/4/10908589",
+  "https://omg10.com/4/10908588",
+  "https://omg10.com/4/10908587"
+];
+
+const getRandomAdLink = () => MONETAG_AD_LINKS[Math.floor(Math.random() * MONETAG_AD_LINKS.length)];
 
 // 백엔드 API 주소 설정 (Render)
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
@@ -52,7 +70,11 @@ const AdSidebar = ({ side }: { side: 'left' | 'right' }) => (
   <div className={`ad-sidebar ad-sidebar-${side}`} style={{ padding: '0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
     <span className="ad-label" style={{ padding: '10px 0 0' }}>ADVERTISEMENT</span>
     <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
-      <CoupangDynamicBanner id={side === 'left' ? 981842 : 981849} width="160" height="600" template="carousel" />
+      {side === 'left' ? (
+        <CoupangDynamicBanner id={981842} width="160" height="600" template="carousel" />
+      ) : (
+        <ClickmonBanner width="160" height="600" />
+      )}
     </div>
   </div>
 );
@@ -328,25 +350,43 @@ function App() {
       // Monetag 광고 태그 확인 (Zone ID: 10906696)
       const monetagShowAd = (window as any).show_10906696;
 
+      // [추가] 클릭몬 전면 광고(팝업) 트리거 함수
+      const triggerClickmonPopup = () => {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        // 클릭몬 전면(팝업) 스크립트 주입
+        script.text = `
+          (function(cl,i,c,k,m,o,n)
+          {m=c;o=cl.referrer;m+='&mon_rf='+encodeURIComponent(o);m+='&mon_direct_url='+encodeURIComponent(k);
+          n='<' + 'i' + 't' + ' type="text/javascript" src="'+m+'"></'+'i' + 't' +'>';cl.writeln(n);
+          })(document,'script','https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php?PopAd=CM_M_1003067%7C%5E%7CCM_A_1156063%7C%5E%7CAdver_M=2&mon_di=','PASSBACK_INPUT');
+        `;
+        document.body.appendChild(script);
+      };
+
       if (monetagShowAd) {
         setAdStatus('ready');
         try {
-          // Monetag 보상형 인터스티셜 실행 (지원되는 경우)
+          // Monetag 실행
           await monetagShowAd();
           
-          // 광고 시청 완료 처리 (Monetag는 보통 별도 콜백이 없으므로 실행 성공시 바로 진행)
+          // 클릭몬 팝업도 함께 실행 (수익 극대화)
+          triggerClickmonPopup();
+
+          // 광고 시청 완료 처리
           const res = await axios.post('/api/reward/verify');
           if (res.data.status === 'success') {
             setShowAdModal(false);
             startSyncWithToken(res.data.token);
           }
         } catch (e) {
-          console.error("Monetag 광고 실행 중 오류:", e);
+          console.error("광고 실행 중 오류:", e);
           setAdStatus('idle'); 
         }
       } else {
-        // Monetag 로드 실패 또는 지원되지 않는 타입(OnClick 등)일 경우
-        // 사용자의 직접적인 클릭 유도를 통해 OnClick 광고를 발생시킴
+        // Monetag 로드 실패 시 클릭몬 팝업 실행 후 카운트다운 진행
+        triggerClickmonPopup();
+        
         setAdStatus('idle'); 
         const timer = setInterval(() => {
           setAdCountdown(prev => {
@@ -451,6 +491,28 @@ function App() {
     axios.post('/api/log-action', { message: t('downloadLog', { n: results.length }) }).catch(() => {});
   };
 
+  const handleDownloadApp = async () => {
+    const downloadUrl = "https://www.dropbox.com/scl/fi/cau17f49dl4ceisutogk1/SubFast-Extractor_v0.1.exe?rlkey=q8v9l63kh7nmdccwen4vrj31n&st=8hoz748d&dl=1";
+    
+    if (isProduction) {
+      // 11개 링크 중 랜덤 선택하여 광고 실행
+      const randomAdLink = getRandomAdLink();
+      window.open(randomAdLink, '_blank');
+      
+      // 기존 show_10906696 방식도 병행 시도 (호환성 유지)
+      const monetagShowAd = (window as any).show_10906696;
+      if (monetagShowAd) {
+        try { await monetagShowAd(); } catch (e) {}
+      }
+    }
+    
+    // Open the download link
+    window.open(downloadUrl, '_blank');
+    
+    // Log the action
+    axios.post('/api/log-action', { message: "[앱 다운로드 클릭] Monetag 광고 로테이션 실행됨" }).catch(() => {});
+  };
+
   return (
     <div className="container">
       {/* 1400px 이상일 때만 표시되는 사이드 광고 */}
@@ -464,14 +526,21 @@ function App() {
         </div>
         <p>{t('appDesc')}</p>
         <div className="header-actions">
-          <select value={lang} onChange={(e) => setLanguage(e.target.value as Language)} className="lang-select" style={{ marginRight: '10px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+          <button 
+            onClick={handleDownloadApp}
+            className="download-app-btn"
+            style={{ border: 'none', cursor: 'pointer' }}
+          >
+            <Download size={18} /> {t('downloadApp')}
+          </button>
+          <button className="log-btn help-btn" onClick={() => setShowGuide(true)}>{t('guideMenu')}</button>
+          <select value={lang} onChange={(e) => setLanguage(e.target.value as Language)} className="lang-select" style={{ padding: '6px 12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
             <option value="ko" style={{color: 'black'}}>한국어</option>
             <option value="en" style={{color: 'black'}}>English</option>
             <option value="ja" style={{color: 'black'}}>日本語</option>
             <option value="zh" style={{color: 'black'}}>中文</option>
             <option value="hi" style={{color: 'black'}}>हिन्दी</option>
           </select>
-          <button className="log-btn help-btn" onClick={() => setShowGuide(true)}>{t('guideMenu')}</button>
         </div>
       </header>
 
@@ -615,7 +684,7 @@ function App() {
       </main>
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
-        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.11. All rights reserved.</p>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.12. All rights reserved.</p>
         <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
           ※ 면책 조항: 본 서비스는 사용자가 업로드한 자막 파일을 서버에 무단 저장·배포하지 않는 단순 동기화 도구입니다. 
           불법적인 사용 및 공유에 대한 책임은 사용자에게 있습니다.
@@ -669,21 +738,22 @@ function App() {
                           return;
                         }
 
+                        // [광고 로테이션 적용]
+                        const randomAdLink = getRandomAdLink();
+                        window.open(randomAdLink, '_blank');
+                        let adTriggered = true; // 다이렉트 링크는 항상 트리거된 것으로 간주
+
                         const { type, id, link } = adRes.data;
-                        let adTriggered = false;
                         
                         if (type === 'monetag' && id) {
                           const monetagFunc = (window as any)[`show_${id}`];
                           if (monetagFunc) {
                             await monetagFunc();
-                            adTriggered = true;
                           } else if (link) {
                             window.open(link, '_blank');
-                            adTriggered = true;
                           }
                         } else if (link) {
                           window.open(link, '_blank');
-                          adTriggered = true;
                         }
                         
                         if (!adTriggered) {
@@ -741,12 +811,52 @@ function App() {
       {showGuide && (
         <div className="modal-overlay">
           <div className="guide-modal glass-morphism animate-in">
-            <div className="guide-header"><h2>{t('guideTitle')}</h2><button className="close-x" onClick={() => setShowGuide(false)}>&times;</button></div>
+            <div className="guide-header">
+              <h2>{t('guideTitle')}</h2>
+              <button className="close-x" onClick={() => setShowGuide(false)}>&times;</button>
+            </div>
+
+            <div className="guide-tabs">
+              <button 
+                className={`tab-btn ${guideTab === 'web' ? 'active' : ''}`} 
+                onClick={() => setGuideTab('web')}
+              >
+                {t('tabWeb')}
+              </button>
+              <button 
+                className={`tab-btn ${guideTab === 'ext' ? 'active' : ''}`} 
+                onClick={() => setGuideTab('ext')}
+              >
+                {t('tabExt')}
+              </button>
+            </div>
+
             <div className="guide-content">
-              <section className="steps-section">
-                <div className="step-item"><div className="step-num">1</div><p>{t('guideStep1')}</p></div>
-                <div className="step-item"><div className="step-num">2</div><p>{t('guideStep2')}</p></div>
-              </section>
+              {guideTab === 'web' ? (
+                <div className="web-guide animate-in">
+                  <section className="purpose-section">
+                    <h3>{t('purposeTitle')}</h3>
+                    <p>{t('purposeDesc')}</p>
+                  </section>
+                  <section className="steps-section">
+                    <div className="step-item"><div className="step-num">1</div><p>{t('guideStep1')}</p></div>
+                    <div className="step-item"><div className="step-num">2</div><p>{t('guideStep2')}</p></div>
+                    <div className="step-item"><div className="step-num">3</div><p>{t('guideStep3')}</p></div>
+                    <div className="step-item"><div className="step-num">4</div><p>{t('guideStep4')}</p></div>
+                  </section>
+                </div>
+              ) : (
+                <div className="extractor-guide animate-in">
+                  <section className="purpose-section">
+                    <h3>{t('extTitle')}</h3>
+                    <p>{t('extDesc')}</p>
+                  </section>
+                  <section className="steps-section">
+                    <div className="step-item"><div className="step-num">1</div><p>{t('extStep1')}</p></div>
+                    <div className="step-item"><div className="step-num">2</div><p>{t('extStep2')}</p></div>
+                  </section>
+                </div>
+              )}
             </div>
             <button className="guide-close-btn" onClick={() => setShowGuide(false)}>{t('closeGuide')}</button>
           </div>
