@@ -14,7 +14,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from aligner import parse_srt, align_subtitles
 from logger_config import logger, LOG_FILE_PATH
 from dotenv import load_dotenv
-import secrets # 보안 토큰 생성을 위한 라이브러리 추가
+import secrets 
+import random
+import json
 from datetime import timedelta
 
 # .env 로드
@@ -197,6 +199,27 @@ async def verify_reward(ad_payload: Optional[dict] = None):
     logger.info(f"신규 작업 티켓 발행 (정책 승인): {new_token[:8]}...")
     return {"status": "success", "token": new_token}
 
+REWARD_PROVIDERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ad_providers.json")
+
+@api_router.get("/reward/link")
+def get_priority_ad_link():
+    """가중치(weight)를 기반으로 확실한 수익이 보장되는 광고 링크를 반환합니다."""
+    default_link = "https://link.coupang.com/a/bl6V3C"
+    try:
+        if os.path.exists(REWARD_PROVIDERS_FILE):
+            with open(REWARD_PROVIDERS_FILE, "r", encoding="utf-8") as f:
+                providers = json.load(f)
+                if providers and isinstance(providers, list):
+                    # 가중치 기반 랜덤 선택 로직
+                    weights = [p.get("weight", 1) for p in providers]
+                    selected = random.choices(providers, weights=weights, k=1)[0]
+                    logger.info(f"광고 선별됨: {selected['name']} (Type: {selected['type']})")
+                    return {"status": "success", "link": selected["url"], "provider": selected["name"]}
+        return {"status": "success", "link": default_link}
+    except Exception as e:
+        logger.error(f"광고 프로바이더 로드 실패: {str(e)}")
+        return {"status": "success", "link": default_link}
+
 @api_router.get("/logs")
 def get_logs():
     if IS_PRODUCTION:
@@ -217,6 +240,26 @@ async def clear_logs():
         with open(LOG_FILE_PATH, "w", encoding="utf-8") as f:
             f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - INFO - 로그 초기화됨 (새로고침)\n")
     return {"status": "success"}
+
+@api_router.get("/samples")
+def get_samples():
+    """프론트엔드 테스트를 위해 내부 샘플 디렉토리의 자막 파일을 로드합니다."""
+    sample_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample")
+    ref_path = os.path.join(sample_dir, "Terminator.Salvation(2009).2160p.UHD.BluRay.X265-IAMABLE.eng.srt")
+    target_path = os.path.join(sample_dir, "Terminator.Salvation.2009.DC.1080p.BluRay.x264.AC3-ONe.smi")
+    
+    with open(ref_path, "r", encoding="utf-8", errors="ignore") as f:
+        ref_content = f.read()
+    with open(target_path, "r", encoding="euc-kr", errors="ignore") as f:
+        target_content = f.read()
+
+    return {
+        "status": "success",
+        "ref_name": "Terminator.Salvation(2009).2160p.UHD.BluRay.X265-IAMABLE.eng.srt",
+        "ref_content": ref_content,
+        "target_name": "Terminator.Salvation.2009.DC.1080p.BluRay.x264.AC3-ONe.smi",
+        "target_content": target_content
+    }
 
 import json
 

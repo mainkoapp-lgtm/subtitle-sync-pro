@@ -273,6 +273,22 @@ function App() {
     }
   };
 
+  const loadSamples = async () => {
+    try {
+      const res = await axios.get('/api/samples');
+      if (res.data.status === 'success') {
+        const refBlob = new Blob([res.data.ref_content], { type: 'text/plain' });
+        const targetBlob = new Blob([res.data.target_content], { type: 'text/plain' });
+        setRefFile(new File([refBlob], res.data.ref_name, { type: 'text/plain' }));
+        setTargetFile(new File([targetBlob], res.data.target_name, { type: 'text/plain' }));
+        showToast('테스트 샘플 파일이 보이지 않게 업로드되었습니다.');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('샘플 로딩 실패', 'error');
+    }
+  };
+
   const onDragOver = (e: React.DragEvent, type: 'ref' | 'target') => {
 // ... existing onDragOver ...
     e.preventDefault();
@@ -309,16 +325,16 @@ function App() {
       setAdStatus('loading');
       setAdCountdown(5); 
 
-      // Monetag 전면 광고 함수 확인 (Zone ID: 232159)
-      const monetagShowAd = (window as any).show_232159;
+      // Monetag 광고 태그 확인 (Zone ID: 10906696)
+      const monetagShowAd = (window as any).show_10906696;
 
       if (monetagShowAd) {
         setAdStatus('ready');
         try {
-          // Monetag 보상형 인터스티셜 실행
+          // Monetag 보상형 인터스티셜 실행 (지원되는 경우)
           await monetagShowAd();
           
-          // 광고 시청 완료 후 서버에 토큰 요청
+          // 광고 시청 완료 처리 (Monetag는 보통 별도 콜백이 없으므로 실행 성공시 바로 진행)
           const res = await axios.post('/api/reward/verify');
           if (res.data.status === 'success') {
             setShowAdModal(false);
@@ -326,10 +342,11 @@ function App() {
           }
         } catch (e) {
           console.error("Monetag 광고 실행 중 오류:", e);
-          setAdStatus('idle'); // 오류 시 쿠팡 브릿지로 대체
+          setAdStatus('idle'); 
         }
       } else {
-        // Monetag 로드 실패(AdBlock 등) 시 쿠팡 파트너스 브릿지 활성화
+        // Monetag 로드 실패 또는 지원되지 않는 타입(OnClick 등)일 경우
+        // 사용자의 직접적인 클릭 유도를 통해 OnClick 광고를 발생시킴
         setAdStatus('idle'); 
         const timer = setInterval(() => {
           setAdCountdown(prev => {
@@ -447,6 +464,7 @@ function App() {
         </div>
         <p>{t('appDesc')}</p>
         <div className="header-actions">
+          <button className="log-btn help-btn" onClick={loadSamples} style={{ marginRight: '10px' }}>자동 샘플 등록</button>
           <select value={lang} onChange={(e) => setLanguage(e.target.value as Language)} className="lang-select" style={{ marginRight: '10px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
             <option value="ko" style={{color: 'black'}}>한국어</option>
             <option value="en" style={{color: 'black'}}>English</option>
@@ -613,8 +631,21 @@ function App() {
         <div className="modal-overlay">
           <div className="guide-modal glass-morphism animate-in reward-ad-modal">
             <div className="ad-video-container">
-              <img src="/ads/reward_preview.png" alt="Ad Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              {adStatus !== 'failed' && adCountdown > 0 && (
+              {adStatus === 'loading' ? (
+                <div className="ad-loading-spinner">
+                  <RefreshCcw className="spinning" size={48} color="#6366f1" />
+                  <p style={{ marginTop: '15px' }}>{t('adTitleLoading')}</p>
+                </div>
+              ) : (
+                <>
+                  <img src="/ads/reward_preview.png" alt="Ad Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} />
+                  <div className="ad-overlay-content">
+                    <CheckCircle size={48} color="#10b981" />
+                    <p style={{ marginTop: '10px', fontSize: '1.1rem', fontWeight: 'bold' }}>{t('adTitleReady')}</p>
+                  </div>
+                </>
+              )}
+              {adCountdown > 0 && (
                 <div className="ad-timer-overlay">{adCountdown}s</div>
               )}
             </div>
@@ -628,9 +659,13 @@ function App() {
                     className="sync-btn" 
                     style={{ width: '100%', justifyContent: 'center', background: '#e11d48' }} 
                     onClick={async () => {
-                      // Monetag 실패 시의 수동 브릿지 (쿠팡 파트너스 등)
-                      window.open('https://link.coupang.com/a/bl6V3C', '_blank'); 
                       try {
+                        // 백엔드에서 실시간 랜덤 광고 링크 가져오기
+                        const linkRes = await axios.get('/api/reward/link');
+                        const targetUrl = linkRes.data.link || 'https://link.coupang.com/a/bl6V3C';
+                        
+                        window.open(targetUrl, '_blank'); 
+                        
                         const res = await axios.post('/api/reward/verify');
                         if (res.data.status === 'success') {
                           setShowAdModal(false);
