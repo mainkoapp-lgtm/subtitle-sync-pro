@@ -1,10 +1,10 @@
 [
   {
-    "name": "Monetag_Main",
+    "name": "Monetag_Vignette",
     "type": "monetag",
-    "id": "10906696",
+    "id": "10907352",
     "weight": 100,
-    "description": "Monetag 공식 스크립트 기반 호출"
+    "description": "Monetag 비네트(전면 반투명) 광고 호출"
   },
   {
     "name": "Coupang_Fallback",
