@@ -660,12 +660,25 @@ function App() {
                     style={{ width: '100%', justifyContent: 'center', background: '#e11d48' }} 
                     onClick={async () => {
                       try {
-                        // 백엔드에서 실시간 랜덤 광고 링크 가져오기
-                        const linkRes = await axios.get('/api/reward/link');
-                        const targetUrl = linkRes.data.link || 'https://link.coupang.com/a/bl6V3C';
+                        // 백엔드에서 동적 광고 정보 가져오기
+                        const adRes = await axios.get('/api/reward/link');
+                        const { type, id, link } = adRes.data;
                         
-                        window.open(targetUrl, '_blank'); 
+                        if (type === 'monetag' && id) {
+                          // 1. Monetag ID 기반 자동 호출
+                          const monetagFunc = (window as any)[`show_${id}`];
+                          if (monetagFunc) {
+                            await monetagFunc();
+                          } else {
+                            // 함수가 없으면(차단 등) 링크로 대체 시도
+                            if (link) window.open(link, '_blank');
+                          }
+                        } else if (link) {
+                          // 2. 일반 링크(쿠팡 등) 방식
+                          window.open(link, '_blank');
+                        }
                         
+                        // 광고 실행 후 토큰 검증 및 싱크 시작
                         const res = await axios.post('/api/reward/verify');
                         if (res.data.status === 'success') {
                           setShowAdModal(false);

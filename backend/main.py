@@ -213,8 +213,14 @@ def get_priority_ad_link():
                     # 가중치 기반 랜덤 선택 로직
                     weights = [p.get("weight", 1) for p in providers]
                     selected = random.choices(providers, weights=weights, k=1)[0]
-                    logger.info(f"광고 선별됨: {selected['name']} (Type: {selected['type']})")
-                    return {"status": "success", "link": selected["url"], "provider": selected["name"]}
+                    logger.info(f"광고 프로바이더 선별됨: {selected['name']} (Type: {selected['type']})")
+                    return {
+                        "status": "success", 
+                        "link": selected.get("url", ""), 
+                        "type": selected.get("type", "link"),
+                        "id": selected.get("id", ""),
+                        "provider": selected["name"]
+                    }
         return {"status": "success", "link": default_link}
     except Exception as e:
         logger.error(f"광고 프로바이더 로드 실패: {str(e)}")

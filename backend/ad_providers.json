@@ -1,23 +1,17 @@
 [
   {
-    "name": "Monetag_Direct",
-    "url": "https://poymoussi.net/4/10906696",
-    "type": "CPM",
-    "weight": 70,
-    "description": "확정 노출 수익 (메인)"
+    "name": "Monetag_Main",
+    "type": "monetag",
+    "id": "10906696",
+    "weight": 100,
+    "description": "Monetag 공식 스크립트 기반 호출"
   },
   {
-    "name": "Adsterra_Smart",
-    "url": "https://example-adsterra-link.com",
-    "type": "CPM",
-    "weight": 20,
-    "description": "확정 노출 수익 (서브)"
-  },
-  {
-    "name": "Coupang_Bonus",
+    "name": "Coupang_Fallback",
+    "type": "link",
     "url": "https://link.coupang.com/a/bl6V3C",
-    "type": "CPC",
-    "weight": 10,
-    "description": "대박 수익 기회 (보너스)"
+    "id": "coupang_01",
+    "weight": 0,
+    "description": "광고 오류 시 대비용 쿠팡 링크"
   }
 ]
