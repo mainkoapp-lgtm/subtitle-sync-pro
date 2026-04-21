@@ -464,7 +464,6 @@ function App() {
         </div>
         <p>{t('appDesc')}</p>
         <div className="header-actions">
-          <button className="log-btn help-btn" onClick={loadSamples} style={{ marginRight: '10px' }}>자동 샘플 등록</button>
           <select value={lang} onChange={(e) => setLanguage(e.target.value as Language)} className="lang-select" style={{ marginRight: '10px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
             <option value="ko" style={{color: 'black'}}>한국어</option>
             <option value="en" style={{color: 'black'}}>English</option>
