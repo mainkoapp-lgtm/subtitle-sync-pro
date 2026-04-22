@@ -17,6 +17,11 @@ from dotenv import load_dotenv
 import secrets 
 import random
 import json
+import hmac
+import hashlib
+import time
+import urllib.request
+import urllib.parse
 from datetime import timedelta
 
 # .env 로드
@@ -201,6 +206,60 @@ async def verify_reward(ad_payload: Optional[dict] = None):
 
 REWARD_PROVIDERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ad_providers.json")
 
+COUPANG_ACCESS_KEY = os.getenv("COUPANG_ACCESS_KEY", "")
+COUPANG_SECRET_KEY = os.getenv("COUPANG_SECRET_KEY", "")
+
+def get_coupang_random_link():
+    default_link = "https://link.coupang.com/a/bl6V3C"
+    if not COUPANG_ACCESS_KEY or not COUPANG_SECRET_KEY:
+        return default_link
+
+    keyword = random.choice(["노트북", "생수", "커피", "모니터", "헤드셋", "마우스", "키보드", "휴지", "영양제"])
+    method = "GET"
+    url_path = f"/v2/providers/affiliate_open_api/apis/openapi/v1/products/search?keyword={urllib.parse.quote(keyword)}&limit=10"
+    domain = "https://api-gateway.coupang.com"
+
+    datetime_str = time.strftime('%y%m%d') + 'T' + time.strftime('%H%M%S') + 'Z'
+    message = datetime_str + method + url_path
+    
+    signature = hmac.new(
+        bytes(COUPANG_SECRET_KEY, "utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest()
+    
+    authorization = f"CEA algorithm=HmacSHA256, access-key={COUPANG_ACCESS_KEY}, signed-date={datetime_str}, signature={signature}"
+    
+    req = urllib.request.Request(domain + url_path)
+    req.add_header("Authorization", authorization)
+    req.add_header("Content-Type", "application/json")
+
+    try:
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            if data.get("rCode") == "0" and data.get("data") and data["data"].get("productData"):
+                products = data["data"]["productData"]
+                selected = random.choice(products)
+                return selected.get("productUrl", default_link)
+    except Exception as e:
+        logger.error(f"Coupang API error: {str(e)}")
+    
+    return default_link
+
+MONETAG_LINKS = [
+    "https://omg10.com/4/10907359",
+    "https://omg10.com/4/10907361",
+    "https://omg10.com/4/10908578",
+    "https://omg10.com/4/10908582",
+    "https://omg10.com/4/10908583",
+    "https://omg10.com/4/10908584",
+    "https://omg10.com/4/10908585",
+    "https://omg10.com/4/10908590",
+    "https://omg10.com/4/10908589",
+    "https://omg10.com/4/10908588",
+    "https://omg10.com/4/10908587"
+]
+
 @api_router.get("/reward/link")
 def get_priority_ad_link():
     """가중치(weight)를 기반으로 확실한 수익이 보장되는 광고 링크를 반환합니다."""
@@ -213,18 +272,28 @@ def get_priority_ad_link():
                     # 가중치 기반 랜덤 선택 로직
                     weights = [p.get("weight", 1) for p in providers]
                     selected = random.choices(providers, weights=weights, k=1)[0]
-                    logger.info(f"광고 프로바이더 선별됨: {selected['name']} (Type: {selected['type']})")
+                    
+                    link = selected.get("url", default_link)
+                    ad_type = selected.get("type", "link")
+                    
+                    if ad_type == "monetag":
+                        link = random.choice(MONETAG_LINKS)
+                    elif ad_type == "coupang":
+                        link = get_coupang_random_link()
+                    elif ad_type == "clickmon":
+                        link = "" # 프론트엔드에서 JS로 띄움
+                    
+                    logger.info(f"광고 프로바이더 선별됨: {selected['name']} (Type: {ad_type})")
                     return {
                         "status": "success", 
-                        "link": selected.get("url", ""), 
-                        "type": selected.get("type", "link"),
-                        "id": selected.get("id", ""),
+                        "link": link, 
+                        "type": ad_type,
                         "provider": selected["name"]
                     }
-        return {"status": "success", "link": default_link}
+        return {"status": "success", "link": default_link, "type": "link", "provider": "Default"}
     except Exception as e:
         logger.error(f"광고 프로바이더 로드 실패: {str(e)}")
-        return {"status": "success", "link": default_link}
+        return {"status": "success", "link": default_link, "type": "link", "provider": "Error"}
 
 @api_router.get("/logs")
 def get_logs():

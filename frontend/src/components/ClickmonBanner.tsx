@@ -18,7 +18,7 @@ const ClickmonBannerBase = ({
   const adScript = `
     (function(cl,i,c,k,m,o,n)
     {m=c;o=cl.referrer;m+='&mon_rf='+encodeURIComponent(o);m+='&mon_direct_url='+encodeURIComponent(k);
-    n='<' + 'i' + 't' + ' type="text/javascript" src="'+m+'"></'+'i' + 't' +'>';cl.writeln(n);
+    n='<' + 's' + 'c' + 'r' + 'i' + 'p' + 't' + ' type="text/javascript" src="'+m+'"></'+'s' + 'c' + 'r' + 'i' + 'p' + 't' +'>';cl.writeln(n);
     })(document,'script','https://tab2.clickmon.co.kr/pop/wp_ad_160_js.php?PopAd=CM_M_1003067%7C%5E%7CCM_A_1156063%7C%5E%7CAdver_M=2&mon_di=','PASSBACK_INPUT');
   `;
 

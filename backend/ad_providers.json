@@ -1,25 +1,27 @@
 [
   {
-    "name": "Monetag_Direct_1",
-    "type": "link",
-    "url": "https://omg10.com/4/10907361",
-    "id": "10907361",
-    "weight": 45,
-    "description": "Monetag 스마트 링크 1 (확정 수익)"
-  },
-  {
-    "name": "Monetag_Direct_2",
-    "type": "link",
-    "url": "https://omg10.com/4/10907359",
-    "id": "10907359",
-    "weight": 45,
-    "description": "Monetag 스마트 링크 2 (확정 수익)"
-  },
-  {
-    "name": "Monetag_Vignette",
+    "name": "Monetag",
     "type": "monetag",
-    "id": "10907352",
+    "weight": 60,
+    "description": "Monetag 다이렉트 링크 (11개 중 랜덤)"
+  },
+  {
+    "name": "Clickmon",
+    "type": "clickmon",
+    "weight": 20,
+    "description": "클릭몬 전면 팝업 광고"
+  },
+  {
+    "name": "Coupang",
+    "type": "coupang",
     "weight": 10,
-    "description": "Monetag 전면 비네트 광고"
+    "description": "쿠팡 실시간 API 링크 (베스트 상품)"
+  },
+  {
+    "name": "FlowState",
+    "type": "internal",
+    "url": "https://flowstate-timer.netlify.app/",
+    "weight": 10,
+    "description": "FlowState 타이머 홍보 링크"
   }
 ]

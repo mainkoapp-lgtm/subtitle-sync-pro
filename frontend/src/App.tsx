@@ -1,4 +1,5 @@
 /** [COMPLETED: 2026-04-02] API Key 가시화 및 로깅 마스킹 제거 완료 (임의 수정 금지) */
+/** [COMPLETED: 2026-04-22] 다국어 지원(i18n) 적용 완료 (임의 수정 금지) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Upload, CheckCircle, AlertCircle, RefreshCcw, Download, Copy, XCircle } from 'lucide-react';
@@ -15,22 +16,7 @@ import './App.css';
 import CoupangDynamicBanner from './components/CoupangDynamicBanner';
 import ClickmonBanner from './components/ClickmonBanner';
 
-// Monetag 다이렉트 링크 리스트 (총 11개)
-const MONETAG_AD_LINKS = [
-  "https://omg10.com/4/10907359",
-  "https://omg10.com/4/10907361",
-  "https://omg10.com/4/10908578",
-  "https://omg10.com/4/10908582",
-  "https://omg10.com/4/10908583",
-  "https://omg10.com/4/10908584",
-  "https://omg10.com/4/10908585",
-  "https://omg10.com/4/10908590",
-  "https://omg10.com/4/10908589",
-  "https://omg10.com/4/10908588",
-  "https://omg10.com/4/10908587"
-];
-
-const getRandomAdLink = () => MONETAG_AD_LINKS[Math.floor(Math.random() * MONETAG_AD_LINKS.length)];
+// 백엔드 API를 통해 동적으로 광고 링크를 받아오도록 개선됨
 
 // 백엔드 API 주소 설정 (Render)
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
@@ -101,10 +87,10 @@ function App() {
   const [showContact, setShowContact] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
-  const [adCountdown, setAdCountdown] = useState(5);
   const [adStatus, setAdStatus] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [adInfo, setAdInfo] = useState<{type: string, link: string, provider: string} | null>(null);
 
   // 서버 설정 가져오기 (운영 모드 확인)
   useEffect(() => {
@@ -130,10 +116,10 @@ function App() {
     };
     try {
       await axios.post('/api/contact', data);
-      showToast('문의가 성공적으로 전송되었습니다.', 'success');
+      showToast(t('contactSuccess'), 'success');
       setShowContact(false);
     } catch (err) {
-      showToast('전송 실패. 잠시 후 다시 시도해주세요.', 'error');
+      showToast(t('contactFail'), 'error');
     }
   };
 
@@ -303,11 +289,11 @@ function App() {
         const targetBlob = new Blob([res.data.target_content], { type: 'text/plain' });
         setRefFile(new File([refBlob], res.data.ref_name, { type: 'text/plain' }));
         setTargetFile(new File([targetBlob], res.data.target_name, { type: 'text/plain' }));
-        showToast('테스트 샘플 파일이 보이지 않게 업로드되었습니다.');
+        showToast(t('sampleUploadedToast'));
       }
     } catch (e) {
       console.error(e);
-      showToast('샘플 로딩 실패', 'error');
+      showToast(t('sampleLoadFailToast'), 'error');
     }
   };
 
@@ -342,61 +328,26 @@ function App() {
     if (!refFile || !targetFile) return;
 
     if (isProduction) {
-      // 배포 모드: 실제 광고 게이트웨이 작동 (Monetag 전면 광고 우선)
       setShowAdModal(true);
       setAdStatus('loading');
-      setAdCountdown(5); 
 
-      // Monetag 광고 태그 확인 (Zone ID: 10906696)
-      const monetagShowAd = (window as any).show_10906696;
-
-      // [추가] 클릭몬 전면 광고(팝업) 트리거 함수
-      const triggerClickmonPopup = () => {
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        // 클릭몬 전면(팝업) 스크립트 주입
-        script.text = `
-          (function(cl,i,c,k,m,o,n)
-          {m=c;o=cl.referrer;m+='&mon_rf='+encodeURIComponent(o);m+='&mon_direct_url='+encodeURIComponent(k);
-          n='<' + 'i' + 't' + ' type="text/javascript" src="'+m+'"></'+'i' + 't' +'>';cl.writeln(n);
-          })(document,'script','https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php?PopAd=CM_M_1003067%7C%5E%7CCM_A_1156063%7C%5E%7CAdver_M=2&mon_di=','PASSBACK_INPUT');
-        `;
-        document.body.appendChild(script);
-      };
-
-      if (monetagShowAd) {
-        setAdStatus('ready');
-        try {
-          // Monetag 실행
-          await monetagShowAd();
-          
-          // 클릭몬 팝업도 함께 실행 (수익 극대화)
-          triggerClickmonPopup();
-
-          // 광고 시청 완료 처리
-          const res = await axios.post('/api/reward/verify');
-          if (res.data.status === 'success') {
-            setShowAdModal(false);
-            startSyncWithToken(res.data.token);
-          }
-        } catch (e) {
-          console.error("광고 실행 중 오류:", e);
-          setAdStatus('idle'); 
-        }
-      } else {
-        // Monetag 로드 실패 시 클릭몬 팝업 실행 후 카운트다운 진행
-        triggerClickmonPopup();
-        
-        setAdStatus('idle'); 
-        const timer = setInterval(() => {
-          setAdCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(timer);
-              return 0;
-            }
-            return prev - 1;
+      // 광고 정보 미리 가져오기
+      try {
+        const adRes = await axios.get('/api/reward/link');
+        if (adRes.data && adRes.data.status === 'success') {
+          setAdInfo({
+            type: adRes.data.type,
+            link: adRes.data.link,
+            provider: adRes.data.provider
           });
-        }, 1000);
+          setAdStatus('idle'); // 로딩 완료 후 버튼 즉시 활성화
+        } else {
+          throw new Error("Invalid Ad Config");
+        }
+      } catch (e) {
+        console.error("광고 정보 로드 실패:", e);
+        // 로드 실패 시에도 예비 광고를 띄우기 위해 버튼 활성화
+        setAdStatus('idle');
       }
       return;
     }
@@ -494,23 +445,28 @@ function App() {
   const handleDownloadApp = async () => {
     const downloadUrl = "https://www.dropbox.com/scl/fi/cau17f49dl4ceisutogk1/SubFast-Extractor_v0.1.exe?rlkey=q8v9l63kh7nmdccwen4vrj31n&st=8hoz748d&dl=1";
     
+    try {
+      const adRes = await axios.get('/api/reward/link');
+      if (adRes.data && adRes.data.link) {
+        window.open(adRes.data.link, '_blank');
+      }
+    } catch (e) {
+      console.error("광고 링크 로드 실패", e);
+    }
+    
+    // 2. 기존 방식 병행
     if (isProduction) {
-      // 11개 링크 중 랜덤 선택하여 광고 실행
-      const randomAdLink = getRandomAdLink();
-      window.open(randomAdLink, '_blank');
-      
-      // 기존 show_10906696 방식도 병행 시도 (호환성 유지)
       const monetagShowAd = (window as any).show_10906696;
       if (monetagShowAd) {
         try { await monetagShowAd(); } catch (e) {}
       }
     }
     
-    // Open the download link
-    window.open(downloadUrl, '_blank');
+    // 3. 현재 창에서 다운로드 실행 (팝업 차단 방지)
+    window.location.href = downloadUrl;
     
     // Log the action
-    axios.post('/api/log-action', { message: "[앱 다운로드 클릭] Monetag 광고 로테이션 실행됨" }).catch(() => {});
+    axios.post('/api/log-action', { message: "[앱 다운로드 클릭] 서버 로테이션 광고 및 다운로드 실행됨" }).catch(() => {});
   };
 
   return (
@@ -534,13 +490,6 @@ function App() {
             <Download size={18} /> {t('downloadApp')}
           </button>
           <button className="log-btn help-btn" onClick={() => setShowGuide(true)}>{t('guideMenu')}</button>
-          <select value={lang} onChange={(e) => setLanguage(e.target.value as Language)} className="lang-select" style={{ padding: '6px 12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
-            <option value="ko" style={{color: 'black'}}>한국어</option>
-            <option value="en" style={{color: 'black'}}>English</option>
-            <option value="ja" style={{color: 'black'}}>日本語</option>
-            <option value="zh" style={{color: 'black'}}>中文</option>
-            <option value="hi" style={{color: 'black'}}>हिन्दी</option>
-          </select>
         </div>
       </header>
 
@@ -559,12 +508,12 @@ function App() {
             </div>
           </div>
           <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>
-            * (안내) 입력하신 API 키는 서버에 저장/수집되지 않습니다. 
+            {t('apiKeyNotice')} 
             <button 
               onClick={() => setShowDisclaimer(true)} 
               style={{ background: 'none', border: 'none', color: '#6366f1', textDecoration: 'underline', cursor: 'pointer', marginLeft: '5px', fontSize: '0.8rem' }}
             >
-              [면책조항 보기]
+              {t('footerDisclaimerBtn')}
             </button>
           </p>
         </div>
@@ -684,14 +633,14 @@ function App() {
       </main>
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
-        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.12. All rights reserved.</p>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.13. All rights reserved.</p>
         <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
-          ※ 면책 조항: 본 서비스는 사용자가 업로드한 자막 파일을 서버에 무단 저장·배포하지 않는 단순 동기화 도구입니다. 
-          불법적인 사용 및 공유에 대한 책임은 사용자에게 있습니다.
+          ※ {t('footerDisclaimerTitle')}: {t('footerDisclaimer1')} 
+          {t('footerDisclaimer2')}
         </p>
         <div style={{ display: 'flex', gap: '20px', marginTop: '10px' }}>
-          <button className="contact-btn" onClick={() => setShowContact(true)}>광고/협찬 및 문의하기</button>
-          <button className="contact-btn" onClick={() => setShowPrivacy(true)} style={{ background: 'rgba(255,255,255,0.05)' }}>개인정보처리방침</button>
+          <button className="contact-btn" onClick={() => setShowContact(true)}>{t('footerContactBtn')}</button>
+          <button className="contact-btn" onClick={() => setShowPrivacy(true)} style={{ background: 'rgba(255,255,255,0.05)' }}>{t('privacyTitle')}</button>
         </div>
       </footer>
 
@@ -713,51 +662,42 @@ function App() {
                   </div>
                 </>
               )}
-              {adCountdown > 0 && (
-                <div className="ad-timer-overlay">{adCountdown}s</div>
-              )}
             </div>
             <div className="ad-modal-body">
-              <h2>{t(adStatus === 'ready' ? 'adTitleReady' : adStatus === 'loading' ? 'adTitleLoading' : adStatus === 'failed' ? 'adTitleComplete' : 'adWatchRequired')}</h2>
-              <p style={{ color: '#94a3b8', marginTop: '12px' }}>{t('adCoupangDesc')}</p>
+              <h2>{adInfo?.type === 'coupang' ? t('adCoupangTitle') : t('adWatchRequired')}</h2>
+              <p style={{ color: '#94a3b8', marginTop: '12px' }}>
+                {adInfo?.type === 'coupang' ? t('adCoupangDesc') : t('adDisclaimer')}
+              </p>
               
               {adStatus === 'idle' && (
                 <div style={{ marginTop: '24px' }}>
                   <button 
                     className="sync-btn" 
-                    style={{ width: '100%', justifyContent: 'center', background: '#e11d48' }} 
+                    style={{ width: '100%', justifyContent: 'center', background: adInfo?.type === 'coupang' ? '#e11d48' : '#6366f1' }} 
                     onClick={async () => {
                       try {
-                        // 백엔드에서 동적 광고 정보 가져오기
-                        const adRes = await axios.get('/api/reward/link');
+                        if (!adInfo) return;
                         
-                        // [보안/오류 검증] 응답이 HTML(정적 페이지)이거나 데이터가 없는 경우 차단
-                        if (typeof adRes.data !== 'object' || adRes.data.status !== 'success') {
-                          console.error('Invalid Ad API response:', adRes.data);
-                          showToast('광고 서버 연결에 실패했습니다. (API 라우팅 오류)', 'error');
-                          return;
-                        }
-
                         // [광고 로테이션 적용]
-                        const randomAdLink = getRandomAdLink();
-                        window.open(randomAdLink, '_blank');
-                        let adTriggered = true; // 다이렉트 링크는 항상 트리거된 것으로 간주
-
-                        const { type, id, link } = adRes.data;
+                        let adTriggered = false;
+                        const { type, link } = adInfo;
                         
-                        if (type === 'monetag' && id) {
-                          const monetagFunc = (window as any)[`show_${id}`];
-                          if (monetagFunc) {
-                            await monetagFunc();
-                          } else if (link) {
-                            window.open(link, '_blank');
-                          }
+                        if (type === 'clickmon') {
+                          // 클릭몬 팝업 스크립트 실행
+                          const c = 'https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php?PopAd=CM_M_1003067%7C%5E%7CCM_A_1156063%7C%5E%7CAdver_M=2&mon_di=';
+                          const script = document.createElement('script');
+                          script.type = 'text/javascript';
+                          script.src = c + '&mon_rf=' + encodeURIComponent(document.referrer) + '&mon_direct_url=' + encodeURIComponent('PASSBACK_INPUT');
+                          document.body.appendChild(script);
+                          adTriggered = true;
                         } else if (link) {
+                          // Monetag(링크), 쿠팡, FlowState 등 모든 URL 기반 광고 처리
                           window.open(link, '_blank');
+                          adTriggered = true;
                         }
                         
                         if (!adTriggered) {
-                          showToast('광고를 불러올 수 없습니다. 광고 차단기(AdBlock)를 해제해주세요.', 'error');
+                          showToast(t('adLoadFail'), 'error');
                           return;
                         }
 
@@ -797,12 +737,12 @@ function App() {
       {showContact && (
         <div className="modal-overlay">
           <div className="guide-modal glass-morphism animate-in" style={{ maxWidth: '500px' }}>
-            <div className="guide-header"><h2>광고/협찬 문의</h2><button className="close-x" onClick={() => setShowContact(false)}>&times;</button></div>
+            <div className="guide-header"><h2>{t('contactTitle')}</h2><button className="close-x" onClick={() => setShowContact(false)}>&times;</button></div>
             <form onSubmit={handleContactSubmit} className="contact-form" style={{ padding: '20px' }}>
-              <input type="text" name="name" required placeholder="이름" style={{ width: '100%', marginBottom: '10px', padding: '10px' }} />
-              <input type="email" name="email" required placeholder="이메일" style={{ width: '100%', marginBottom: '10px', padding: '10px' }} />
-              <textarea name="message" required rows={5} placeholder="내용" style={{ width: '100%', padding: '10px' }}></textarea>
-              <button type="submit" style={{ width: '100%', padding: '12px', background: '#6366f1', color: 'white', border: 'none' }}>보내기</button>
+              <input type="text" name="name" required placeholder={t('contactName')} style={{ width: '100%', marginBottom: '10px', padding: '10px' }} />
+              <input type="email" name="email" required placeholder={t('contactEmail')} style={{ width: '100%', marginBottom: '10px', padding: '10px' }} />
+              <textarea name="message" required rows={5} placeholder={t('contactMessage')} style={{ width: '100%', padding: '10px' }}></textarea>
+              <button type="submit" style={{ width: '100%', padding: '12px', background: '#6366f1', color: 'white', border: 'none' }}>{t('contactSend')}</button>
             </form>
           </div>
         </div>
@@ -866,23 +806,23 @@ function App() {
         <div className="modal-overlay">
           <div className="guide-modal glass-morphism animate-in" style={{ maxWidth: '600px' }}>
             <div className="guide-header">
-              <h2>개인정보처리방침</h2>
+              <h2>{t('privacyTitle')}</h2>
               <button className="close-x" onClick={() => setShowPrivacy(false)}>&times;</button>
             </div>
             <div className="guide-content" style={{ padding: '20px', fontSize: '0.9rem', lineHeight: '1.6', maxHeight: '600px', overflowY: 'auto' }}>
-              <h3>1. 수집하는 개인정보</h3>
-              <p>본 서비스는 별도의 회원가입 없이 이용 가능하며, 사용자의 이름, 연락처 등을 수기 입력하는 문의하기 기능을 제외하고는 어떠한 민감 개인정보도 수집하지 않습니다.</p>
+              <h3>{t('privacy1Title')}</h3>
+              <p>{t('privacy1Desc')}</p>
               
-              <h3>2. 광고 및 쿠키 사용</h3>
-              <p>본 사이트는 구글 애드센스(Google AdSense)를 통해 광고를 게재합니다. 구글은 사용자의 관심사에 맞는 광고를 제공하기 위해 쿠키를 사용하여 데이터를 수집할 수 있습니다.</p>
+              <h3>{t('privacy2Title')}</h3>
+              <p>{t('privacy2Desc')}</p>
               
-              <h3>3. 파일 보안</h3>
-              <p>사용자가 업로드하는 자막 파일은 싱크 작업을 위해 일시적으로 서버에서 처리될 뿐, DB 등에 저장되거나 제3자에게 공유되지 않습니다. 작업 완료 후 즉시 파기됩니다.</p>
+              <h3>{t('privacy3Title')}</h3>
+              <p>{t('privacy3Desc')}</p>
               
-              <h3>4. 문의처</h3>
-              <p>기타 문의사항은 '광고/협찬 및 문의하기' 폼을 통해 접수해주시기 바랍니다.</p>
+              <h3>{t('privacy4Title')}</h3>
+              <p>{t('privacy4Desc')}</p>
             </div>
-            <button className="guide-close-btn" onClick={() => setShowPrivacy(false)}>확인</button>
+            <button className="guide-close-btn" onClick={() => setShowPrivacy(false)}>{t('privacyConfirm')}</button>
           </div>
         </div>
       )}
@@ -891,21 +831,21 @@ function App() {
         <div className="modal-overlay">
           <div className="guide-modal glass-morphism animate-in" style={{ maxWidth: '600px' }}>
             <div className="guide-header">
-              <h2>면책 조항 (Disclaimer)</h2>
+              <h2>{t('footerDisclaimerTitle')}</h2>
               <button className="close-x" onClick={() => setShowDisclaimer(false)}>&times;</button>
             </div>
             <div className="guide-content" style={{ padding: '20px', fontSize: '1rem', lineHeight: '1.8' }}>
               <p style={{ marginBottom: '15px' }}>
-                본 서비스는 사용자가 업로드한 자막 파일을 서버에 무단 저장·배포하지 않는 <strong>단순 동기화 도구(Utility)</strong>입니다.
+                {t('footerDisclaimer1')}
               </p>
               <p style={{ color: '#f87171', fontWeight: 'bold' }}>
-                저작권이 있는 자막 파일 원본의 불법 사용 및 공유로 인해 발생하는 모든 법적 책임은 전적으로 사용자 본인에게 있음을 알려드립니다.
+                {t('footerDisclaimer3')}
               </p>
               <p style={{ marginTop: '15px', color: '#94a3b8', fontSize: '0.9rem' }}>
-                사용자는 본 서비스를 이용함으로써 위 사항에 동의하는 것으로 간주됩니다.
+                {t('footerDisclaimer4')}
               </p>
             </div>
-            <button className="guide-close-btn" onClick={() => setShowDisclaimer(false)}>확인 및 동의</button>
+            <button className="guide-close-btn" onClick={() => setShowDisclaimer(false)}>{t('footerDisclaimerConfirm')}</button>
           </div>
         </div>
       )}
