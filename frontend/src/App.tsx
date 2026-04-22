@@ -433,7 +433,9 @@ function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `[Synced]_${targetFile?.name || 'subtitle.srt'}`;
+    const originalName = targetFile?.name || 'subtitle.srt';
+    const fileNameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+    link.download = `[Synced]_${fileNameWithoutExt}.srt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
