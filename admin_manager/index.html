@@ -121,6 +121,44 @@
                 </div>
             </header>
 
+            <!-- Analytics Summary Section (New) -->
+            <div class="mb-10 relative z-10">
+                <h3 class="text-xl font-extrabold flex items-center gap-3 mb-6">
+                    <span class="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg"><i data-lucide="zap" class="w-5 h-5"></i></span>
+                    수익성 및 참여 지표 (Revenue & Engagement)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="stat-card-glass p-6 rounded-3xl border-l-4 border-l-indigo-500">
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">싱크 맞추기 클릭</p>
+                        <div class="flex items-end justify-between">
+                            <p class="text-3xl font-black text-indigo-400" id="stat-sync-clicks">0</p>
+                            <i data-lucide="refresh-ccw" class="w-6 h-6 text-slate-700"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-glass p-6 rounded-3xl border-l-4 border-l-emerald-500">
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">앱 다운로드 클릭</p>
+                        <div class="flex items-end justify-between">
+                            <p class="text-3xl font-black text-emerald-400" id="stat-download-clicks">0</p>
+                            <i data-lucide="download" class="w-6 h-6 text-slate-700"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-glass p-6 rounded-3xl border-l-4 border-l-amber-500">
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">광고 시청 완료</p>
+                        <div class="flex items-end justify-between">
+                            <p class="text-3xl font-black text-amber-400" id="stat-ad-views">0</p>
+                            <i data-lucide="eye" class="w-6 h-6 text-slate-700"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-glass p-6 rounded-3xl border-l-4 border-l-rose-500">
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">광고 전환율 (CTR)</p>
+                        <div class="flex items-end justify-between">
+                            <p class="text-3xl font-black text-rose-400" id="stat-ctr">0%</p>
+                            <i data-lucide="percent" class="w-6 h-6 text-slate-700"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Stats Grid -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 relative z-10">
                 <div class="stat-card-glass p-8 rounded-[2rem] relative overflow-hidden group">
@@ -227,7 +265,9 @@
     <script>
         lucide.createIcons();
         let apiSecret = '';
-        const API_URL = 'http://localhost:8000/admin/traffic';
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:8000/api/admin/traffic' 
+            : '/api/admin/traffic';
 
         function handleLogin() {
             const keyInput = document.getElementById('admin-key').value;
@@ -242,15 +282,21 @@
             refreshIcon.classList.add('animate-spin');
 
             try {
-                const res = await axios.get(API_URL, {
-                    headers: { 'X-Admin-Key': apiSecret }
-                });
+                // 트래픽 로그와 클릭 통계를 동시에 가져옴
+                const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                    ? 'http://localhost:8000/api/admin' 
+                    : '/api/admin';
+
+                const [trafficRes, statsRes] = await Promise.all([
+                    axios.get(`${baseUrl}/traffic`, { headers: { 'X-Admin-Key': apiSecret } }),
+                    axios.get(`${baseUrl}/stats`, { headers: { 'X-Admin-Key': apiSecret } })
+                ]);
 
                 document.getElementById('login-section').classList.add('hidden');
                 document.getElementById('dashboard-section').classList.remove('hidden');
                 document.getElementById('error-msg').classList.add('hidden');
                 
-                renderDashboard(res.data);
+                renderDashboard(trafficRes.data, statsRes.data);
             } catch (e) {
                 console.error(e);
                 if (e.response && e.response.status === 403) {
@@ -271,12 +317,21 @@
         Chart.defaults.color = '#94a3b8';
         Chart.defaults.font.family = "'Inter', sans-serif";
 
-        function renderDashboard(logs) {
+        function renderDashboard(logs, stats) {
             const uv = new Set(logs.map(l => l.visitorId)).size;
             
-            // Value Animations
+            // Value Animations (Traffic)
             animateValue("stat-uv", 0, uv, 1000);
             animateValue("stat-sessions", 0, logs.length, 1000);
+            
+            // Value Animations (Revenue Stats)
+            animateValue("stat-sync-clicks", 0, stats.sync_clicks || 0, 1000);
+            animateValue("stat-download-clicks", 0, stats.app_download_clicks || 0, 1000);
+            animateValue("stat-ad-views", 0, stats.ad_views || 0, 1000);
+            
+            const totalClicks = (stats.sync_clicks || 0) + (stats.app_download_clicks || 0);
+            const ctr = totalClicks > 0 ? ((stats.ad_views / totalClicks) * 100).toFixed(1) : 0;
+            document.getElementById('stat-ctr').textContent = ctr + '%';
             
             const nations = logs.reduce((acc, log) => {
                 acc[log.country] = (acc[log.country] || 0) + 1;

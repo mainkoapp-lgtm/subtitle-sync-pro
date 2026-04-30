@@ -91,19 +91,63 @@ function App() {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [adInfo, setAdInfo] = useState<{type: string, link: string, provider: string} | null>(null);
+  const [adBlockDetected, setAdBlockDetected] = useState(false);
 
-  // 서버 설정 가져오기 (운영 모드 확인)
+  // 광고 차단기 감지 로직
+  const checkAdBlocker = async () => {
+    if (!isProduction) return; // 개발 모드에서는 체크 안 함
+    
+    // 방법 1: 특정 광고 스크립트 로드 시도
+    try {
+      const response = await fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', {
+        method: 'HEAD',
+        mode: 'no-cors',
+      });
+      // 성공하면 차단기 없음
+    } catch (error) {
+      // 실패하면 차단기 있을 확률 높음
+      console.warn("광고 차단기가 감지되었습니다.");
+      setAdBlockDetected(true);
+      return;
+    }
+
+    // 방법 2: DOM 기반 체크 (숨겨진 광고 요소 확인)
+    const bait = document.createElement('div');
+    bait.setAttribute('class', 'pub_300x250 pub_300x250m pub_728x90 text-ad text_ad text_ads text-ads ad-wrapper ad-container');
+    bait.setAttribute('style', 'width: 1px !important; height: 1px !important; position: absolute !important; left: -10000px !important; top: -1000px !important;');
+    document.body.appendChild(bait);
+    
+    setTimeout(() => {
+      if (bait.offsetParent === null || bait.offsetHeight === 0 || bait.offsetLeft === 0 || bait.offsetTop === 0 || bait.offsetWidth === 0 || bait.clientHeight === 0 || bait.clientWidth === 0) {
+        setAdBlockDetected(true);
+      }
+      document.body.removeChild(bait);
+    }, 100);
+  };
+
   useEffect(() => {
     const fetchConfig = async () => {
       try {
         const res = await axios.get('/api/config');
         setIsProduction(res.data.isProduction);
+        // 서버 모드 확인 후 광고 차단기 체크
+        if (res.data.isProduction) {
+          checkAdBlocker();
+        }
       } catch (e) {
         console.error("서버 설정을 불러오는데 실패했습니다.", e);
       }
     };
     fetchConfig();
   }, []);
+
+  const trackClick = async (buttonId: string) => {
+    try {
+      await axios.post('/api/collect-click', { button_id: buttonId });
+    } catch (e) {
+      console.error("클릭 로그 수집 실패", e);
+    }
+  };
 
   const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -327,6 +371,9 @@ function App() {
   const handleSync = async () => {
     if (!refFile || !targetFile) return;
 
+    // 클릭 수집
+    trackClick("sync_button");
+
     if (isProduction) {
       setShowAdModal(true);
       setAdStatus('loading');
@@ -445,6 +492,9 @@ function App() {
   };
 
   const handleDownloadApp = async () => {
+    // 클릭 수집
+    trackClick("app_download_button");
+    
     const downloadUrl = "https://www.dropbox.com/scl/fi/cau17f49dl4ceisutogk1/SubFast-Extractor_v0.1.exe?rlkey=q8v9l63kh7nmdccwen4vrj31n&st=8hoz748d&dl=1";
     
     try {
@@ -473,6 +523,37 @@ function App() {
 
   return (
     <div className="container">
+      {/* 광고 차단기 경고 모달 */}
+      {adBlockDetected && (
+        <div className="modal-overlay adblock-overlay" style={{ zIndex: 9999, backdropFilter: 'blur(20px)' }}>
+          <div className="guide-modal glass-morphism animate-in" style={{ maxWidth: '450px', textAlign: 'center', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+            <div style={{ padding: '40px 20px' }}>
+              <XCircle size={64} color="#ef4444" style={{ margin: '0 auto 20px' }} />
+              <h2 style={{ color: '#ef4444', marginBottom: '15px' }}>{lang === 'ko' ? '광고 차단기가 감지되었습니다' : 'Ad Blocker Detected'}</h2>
+              <p style={{ color: '#f8fafc', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '25px' }}>
+                {lang === 'ko' 
+                  ? '죄송합니다. 본 서비스는 무료 운영을 위해 광고 수익을 기반으로 하고 있습니다. 광고 차단기를 끄지 않으면 서비스를 이용하실 수 없습니다.' 
+                  : 'Sorry, this service relies on ad revenue to stay free. You cannot use the service unless you disable your ad blocker.'}
+              </p>
+              <div style={{ padding: '15px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '30px' }}>
+                <p style={{ fontSize: '0.9rem', color: '#fca5a5' }}>
+                  {lang === 'ko' 
+                    ? '광고 차단기(AdGuard, uBlock 등)를 해제한 후 페이지를 새로고침(F5) 해주세요.' 
+                    : 'Please disable your ad blocker (AdGuard, uBlock, etc.) and refresh the page (F5).'}
+                </p>
+              </div>
+              <button 
+                onClick={() => window.location.reload()}
+                className="sync-btn"
+                style={{ width: '100%', justifyContent: 'center', background: '#ef4444' }}
+              >
+                {lang === 'ko' ? '새로고침하여 다시 시도' : 'Refresh and Try Again'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1400px 이상일 때만 표시되는 사이드 광고 */}
       <AdSidebar side="left" />
       <AdSidebar side="right" />
