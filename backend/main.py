@@ -131,7 +131,7 @@ async def sync_subtitles(
     target_blocks = parse_subtitles(target_content, target_file.filename)
     
     try:
-        result = await run_in_threadpool(
+        alignment_res = await run_in_threadpool(
             align_subtitles,
             ref_subs=ref_blocks, 
             target_subs=target_blocks, 
@@ -141,16 +141,43 @@ async def sync_subtitles(
             check_cancel=check_cancel,
             target_lang=target_lang
         )
+        result = alignment_res["results"]
+        usage = alignment_res["usage"]
+        
+        # [추가] 토큰 사용량 로그 저장
+        USAGE_LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "usage_logs.json")
+        try:
+            usage_entry = {
+                "task_id": task_id,
+                "timestamp": datetime.now().isoformat(),
+                "model": ai_model,
+                "usage": usage,
+                "file_info": {
+                    "ref": ref_file.filename,
+                    "target": target_file.filename,
+                    "ref_count": len(ref_blocks),
+                    "target_count": len(target_blocks)
+                }
+            }
+            usage_history = []
+            if os.path.exists(USAGE_LOG_FILE):
+                with open(USAGE_LOG_FILE, "r", encoding="utf-8") as f:
+                    usage_history = json.load(f)
+            usage_history.insert(0, usage_entry)
+            with open(USAGE_LOG_FILE, "w", encoding="utf-8") as f:
+                json.dump(usage_history[:1000], f, ensure_ascii=False, indent=2)
+            logger.info(f"API 토큰 사용량 기록 완료: {usage['total_tokens']} tokens")
+        except Exception as log_e:
+            logger.error(f"사용량 로그 저장 실패: {str(log_e)}")
+
     except Exception as e:
         if str(e) == "Cancelled":
             logger.info(f"작업 취소됨: {task_id}")
             return {"status": "cancelled", "message": "작업이 취소되었습니다."}
         
-        # [수정] 에러 발생 시 로그에 상세 원인 기록 (사용자가 로그 보기 버튼으로 원인 파악 가능하게 함)
         logger.exception(f"싱크 처리 중 중대한 에러 발생 (태스크: {task_id}): {str(e)}")
         return {"status": "error", "message": f"싱크 중 오류 발생: {str(e)}"}
 
-    
     if task_id and task_id in tasks_progress:
         del tasks_progress[task_id]
     if task_id and task_id in tasks_cancelled:
@@ -159,7 +186,8 @@ async def sync_subtitles(
     return {
         "status": "success",
         "count": len(result),
-        "data": result
+        "data": result,
+        "usage": usage
     }
 
 @api_router.get("/progress/{task_id}")

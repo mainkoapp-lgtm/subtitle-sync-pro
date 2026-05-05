@@ -65,6 +65,20 @@ const AdSidebar = ({ side }: { side: 'left' | 'right' }) => (
   </div>
 );
 
+// 모바일 전용 가로 광고 배너
+const MobileAdBanner = ({ id }: { id?: number }) => (
+  <div className="mobile-ad-container glass-morphism">
+    <span className="ad-label" style={{ fontSize: '9px', marginBottom: '8px' }}>Advertisement</span>
+    <div style={{ width: '100%', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+      {id ? (
+        <CoupangDynamicBanner id={id} width="320" height="100" template="carousel" />
+      ) : (
+        <ClickmonBanner width="320" height="100" />
+      )}
+    </div>
+  </div>
+);
+
 function App() {
   const { t, lang } = useTranslation();
   const [refFile, setRefFile] = useState<File | null>(null);
@@ -92,37 +106,84 @@ function App() {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [adInfo, setAdInfo] = useState<{type: string, link: string, provider: string} | null>(null);
   const [adBlockDetected, setAdBlockDetected] = useState(false);
+  const [adActionType, setAdActionType] = useState<'sync' | 'download' | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<any>(null);
 
-  // 광고 차단기 감지 로직
-  const checkAdBlocker = async () => {
-    if (!isProduction) return; // 개발 모드에서는 체크 안 함
+  // 광고 차단기 감지 로직 강화
+  const checkAdBlocker = async (): Promise<boolean> => {
+    if (!isProduction) return false;
     
-    // 방법 1: 특정 광고 스크립트 로드 시도
-    try {
-      const response = await fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', {
-        method: 'HEAD',
-        mode: 'no-cors',
-      });
-      // 성공하면 차단기 없음
-    } catch (error) {
-      // 실패하면 차단기 있을 확률 높음
-      console.warn("광고 차단기가 감지되었습니다.");
-      setAdBlockDetected(true);
-      return;
+    let detected = false;
+
+    // 방법 1: Bait Script 확인 (전역 변수 체크)
+    if ((window as any).canRunAds === undefined) {
+      detected = true;
     }
 
-    // 방법 2: DOM 기반 체크 (숨겨진 광고 요소 확인)
-    const bait = document.createElement('div');
-    bait.setAttribute('class', 'pub_300x250 pub_300x250m pub_728x90 text-ad text_ad text_ads text-ads ad-wrapper ad-container');
-    bait.setAttribute('style', 'width: 1px !important; height: 1px !important; position: absolute !important; left: -10000px !important; top: -1000px !important;');
-    document.body.appendChild(bait);
-    
-    setTimeout(() => {
-      if (bait.offsetParent === null || bait.offsetHeight === 0 || bait.offsetLeft === 0 || bait.offsetTop === 0 || bait.offsetWidth === 0 || bait.clientHeight === 0 || bait.clientWidth === 0) {
-        setAdBlockDetected(true);
+    // 방법 2: Google Ads 및 필수 네트워크 도메인 차단 확인
+    if (!detected) {
+      const adDomains = [
+        'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
+        'https://googleads.g.doubleclick.net/pagead/ads',
+        'https://quge5.com/88/tag.min.js' // Monetag
+      ];
+      
+      for (const domain of adDomains) {
+        try {
+          const res = await fetch(domain, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+          if (!res.ok && res.type !== 'opaque') {
+            detected = true;
+            break;
+          }
+        } catch (error) {
+          detected = true;
+          break;
+        }
       }
+    }
+
+    // 방법 3: 특정 광고 스크립트 객체 존재 확인
+    if (!detected) {
+      const isAdsbygoogleBlocked = (window as any).adsbygoogle && (window as any).adsbygoogle.loaded === false;
+      const isMonetagBlocked = !(window as any).Monetag && !document.querySelector('script[src*="quge5.com"]');
+      
+      if (isAdsbygoogleBlocked || isMonetagBlocked) {
+        detected = true;
+      }
+    }
+
+    // 방법 4: DOM 기반 체크 (강화된 베이트 요소)
+    if (!detected) {
+      const bait = document.createElement('div');
+      // 광고 차단기가 흔히 타겟팅하는 클래스명들 대거 투입
+      bait.setAttribute('class', 'pub_300x250 pub_300x250m pub_728x90 text-ad text_ad text_ads text-ads ad-wrapper ad-container ad-banner adsbox');
+      bait.setAttribute('id', 'ad-banner-test');
+      bait.setAttribute('style', 'width: 1px !important; height: 1px !important; position: absolute !important; left: -10000px !important; top: -1000px !important; display: block !important;');
+      document.body.appendChild(bait);
+      
+      const isHidden = await new Promise<boolean>(resolve => {
+        setTimeout(() => {
+          const style = window.getComputedStyle(bait);
+          const hidden = bait.offsetParent === null || 
+                         bait.offsetHeight === 0 || 
+                         style.display === 'none' || 
+                         style.visibility === 'hidden' ||
+                         style.opacity === '0';
+          resolve(hidden);
+        }, 150); // 지연 시간 소폭 상향
+      });
+      
+      if (isHidden) detected = true;
       document.body.removeChild(bait);
-    }, 100);
+    }
+
+    // 방법 5: 외부 스크립트 로드 실패 핸들러 확인 (간접적)
+    if (!detected && (window as any).adBlockDetectedByScript === true) {
+      detected = true;
+    }
+
+    setAdBlockDetected(detected);
+    return detected;
   };
 
   useEffect(() => {
@@ -371,10 +432,18 @@ function App() {
   const handleSync = async () => {
     if (!refFile || !targetFile) return;
 
+    // [강력 보안] 실행 직전 광고 차단기 재검사
+    const isBlocked = await checkAdBlocker();
+    if (isBlocked) {
+      showToast(lang === 'ko' ? '광고 차단기를 끄고 진행해주세요.' : 'Please disable ad blocker to proceed.', 'error');
+      return;
+    }
+
     // 클릭 수집
     trackClick("sync_button");
 
     if (isProduction) {
+      setAdActionType('sync');
       setShowAdModal(true);
       setAdStatus('loading');
 
@@ -492,33 +561,46 @@ function App() {
   };
 
   const handleDownloadApp = async () => {
+    // [강력 보안] 실행 직전 광고 차단기 재검사
+    const isBlocked = await checkAdBlocker();
+    if (isBlocked) {
+      showToast(lang === 'ko' ? '광고 차단기를 끄고 진행해주세요.' : 'Please disable ad blocker to proceed.', 'error');
+      return;
+    }
+
     // 클릭 수집
     trackClick("app_download_button");
     
-    const downloadUrl = "https://www.dropbox.com/scl/fi/cau17f49dl4ceisutogk1/SubFast-Extractor_v0.1.exe?rlkey=q8v9l63kh7nmdccwen4vrj31n&st=8hoz748d&dl=1";
-    
-    try {
-      const adRes = await axios.get('/api/reward/link');
-      if (adRes.data && adRes.data.link) {
-        window.open(adRes.data.link, '_blank');
-      }
-    } catch (e) {
-      console.error("광고 링크 로드 실패", e);
-    }
-    
-    // 2. 기존 방식 병행
     if (isProduction) {
-      const monetagShowAd = (window as any).show_10906696;
-      if (monetagShowAd) {
-        try { await monetagShowAd(); } catch (e) {}
+      setAdActionType('download');
+      setShowAdModal(true);
+      setAdStatus('loading');
+      
+      try {
+        const adRes = await axios.get('/api/reward/link');
+        if (adRes.data && adRes.data.status === 'success') {
+          setAdInfo({
+            type: adRes.data.type,
+            link: adRes.data.link,
+            provider: adRes.data.provider
+          });
+          setAdStatus('idle');
+        } else {
+          setAdStatus('idle');
+        }
+      } catch (e) {
+        setAdStatus('idle');
       }
+      return;
     }
     
-    // 3. 현재 창에서 다운로드 실행 (팝업 차단 방지)
+    executeActualDownload();
+  };
+
+  const executeActualDownload = () => {
+    const downloadUrl = "https://www.dropbox.com/scl/fi/cau17f49dl4ceisutogk1/SubFast-Extractor_v0.1.exe?rlkey=q8v9l63kh7nmdccwen4vrj31n&st=8hoz748d&dl=1";
     window.location.href = downloadUrl;
-    
-    // Log the action
-    axios.post('/api/log-action', { message: "[앱 다운로드 클릭] 서버 로테이션 광고 및 다운로드 실행됨" }).catch(() => {});
+    axios.post('/api/log-action', { message: "[앱 다운로드 실행] 광고 확인 완료 후 다운로드 시작됨" }).catch(() => {});
   };
 
   return (
@@ -554,9 +636,12 @@ function App() {
         </div>
       )}
 
-      {/* 1400px 이상일 때만 표시되는 사이드 광고 */}
+      {/* 1550px 이상일 때만 표시되는 사이드 광고 (CSS로 제어) */}
       <AdSidebar side="left" />
       <AdSidebar side="right" />
+
+      {/* 모바일/태블릿용 상단 광고 */}
+      <MobileAdBanner id={981842} />
 
       <header>
         <div className="logo">
@@ -658,6 +743,9 @@ function App() {
               </button>
             ) : null}
           </div>
+          
+          {/* 모바일/태블릿용 중간 광고 */}
+          <MobileAdBanner />
         </section>
 
         {showLogs && (
@@ -683,6 +771,11 @@ function App() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
                   {t('originMatched')} <strong>{results.filter(r => r.matched && !r.translated).length}</strong> | {t('aiTranslated')} <strong style={{ color: '#818cf8' }}>{results.filter(r => r.translated).length}</strong> | {t('failedCount')} <strong style={{ color: '#ef4444' }}>{results.filter(r => !r.matched).length}</strong>
+                  {tokenUsage && (
+                    <span style={{ marginLeft: '12px', paddingLeft: '12px', borderLeft: '1px solid rgba(255,255,255,0.1)', color: '#10b981' }}>
+                      Token: <strong>{tokenUsage.total_tokens.toLocaleString()}</strong>
+                    </span>
+                  )}
                 </span>
                 <button className="download-btn" onClick={handleDownload}><Download size={18} /> {t('downloadResult')}</button>
               </div>
@@ -712,7 +805,8 @@ function App() {
           </section>
         )}
 
-        {/* 쿠팡 가로 배너 삭제됨 (사이드로 이동) */}
+        {/* 모바일/태블릿용 하단 광고 */}
+        <MobileAdBanner id={981842} />
       </main>
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
@@ -766,7 +860,6 @@ function App() {
                         const { type, link } = adInfo;
                         
                         if (type === 'clickmon') {
-                          // 클릭몬 팝업 스크립트 실행
                           const c = 'https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php?PopAd=CM_M_1003067%7C%5E%7CCM_A_1156063%7C%5E%7CAdver_M=2&mon_di=';
                           const script = document.createElement('script');
                           script.type = 'text/javascript';
@@ -774,7 +867,6 @@ function App() {
                           document.body.appendChild(script);
                           adTriggered = true;
                         } else if (link) {
-                          // Monetag(링크), 쿠팡, FlowState 등 모든 URL 기반 광고 처리
                           window.open(link, '_blank');
                           adTriggered = true;
                         }
@@ -784,24 +876,28 @@ function App() {
                           return;
                         }
 
-                        // 사용자 인지를 위해 1.5초 지연 후 티켓 검증 및 싱크 시작
+                        // 사용자 인지를 위해 2초 지연 후 티켓 검증 및 후속 작업 진행
                         setTimeout(async () => {
                           try {
                             const res = await axios.post('/api/reward/verify');
                             if (res.data.status === 'success') {
                               setShowAdModal(false);
-                              startSyncWithToken(res.data.token);
+                              if (adActionType === 'sync') {
+                                startSyncWithToken(res.data.token);
+                              } else if (adActionType === 'download') {
+                                executeActualDownload();
+                              }
                             }
                           } catch (verifyErr) {
                             showToast(t('logFetchFailToast'), 'error');
                           }
-                        }, 1500);
+                        }, 2000);
                       } catch (e) {
                         showToast(t('logFetchFailToast'), 'error');
                       }
                     }}
                   >
-                    {t('adCoupangTitle')}
+                    {adActionType === 'download' ? (lang === 'ko' ? '광고 확인 및 다운로드 시작' : 'Verify Ad & Start Download') : t('adCoupangTitle')}
                   </button>
                   <p className="coupang-disclaimer" style={{ margin: '15px auto 0' }}>{t('adDisclaimer')}</p>
                 </div>

@@ -1,9 +1,10 @@
 .container {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px;
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
 }
 
 /* 사이드 광고 영역 */
@@ -60,9 +61,30 @@
   );
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1550px) {
   .ad-sidebar {
     display: none;
+  }
+}
+
+/* 모바일 전용 광고 영역 */
+.mobile-ad-container {
+  display: none;
+  width: 100%;
+  max-width: 860px;
+  margin: 20px auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+@media (max-width: 1550px) {
+  .mobile-ad-container {
+    display: flex;
   }
 }
 
