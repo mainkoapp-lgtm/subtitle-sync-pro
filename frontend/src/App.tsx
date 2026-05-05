@@ -120,21 +120,20 @@ function App() {
       detected = true;
     }
 
-    // 방법 2: Google Ads 및 필수 네트워크 도메인 차단 확인
+    // 방법 2: Google Ads 및 필수 네트워크 도메인 차단 직접 확인
     if (!detected) {
       const adDomains = [
         'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
         'https://googleads.g.doubleclick.net/pagead/ads',
-        'https://quge5.com/88/tag.min.js' // Monetag
+        'https://quge5.com/88/tag.min.js', // Monetag script
+        'https://omg10.com/4/10907359', // Monetag actual ad link
+        'https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php' // Clickmon
       ];
       
       for (const domain of adDomains) {
         try {
-          const res = await fetch(domain, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
-          if (!res.ok && res.type !== 'opaque') {
-            detected = true;
-            break;
-          }
+          // fetch 시도. AdGuard가 차단하면 TypeError가 발생함
+          await fetch(domain, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
         } catch (error) {
           detected = true;
           break;
@@ -810,7 +809,7 @@ function App() {
       </main>
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
-        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.13. All rights reserved.</p>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.14. All rights reserved.</p>
         <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
           ※ {t('footerDisclaimerTitle')}: {t('footerDisclaimer1')} 
           {t('footerDisclaimer2')}
@@ -876,9 +875,17 @@ function App() {
                           return;
                         }
 
-                        // 사용자 인지를 위해 2초 지연 후 티켓 검증 및 후속 작업 진행
+                        // 사용자 인지를 위해 지연, 지연 중에 다시 한 번 광고 차단기를 검사하여 
+                        // 새 탭이 차단당하는 동작(AdGuard 등)을 잡아냄
                         setTimeout(async () => {
                           try {
+                            const isStillBlocked = await checkAdBlocker();
+                            if (isStillBlocked) {
+                              setShowAdModal(false);
+                              showToast(lang === 'ko' ? '광고 차단기가 켜져있어 진행이 취소되었습니다.' : 'Ad Blocker prevented the process.', 'error');
+                              return;
+                            }
+
                             const res = await axios.post('/api/reward/verify');
                             if (res.data.status === 'success') {
                               setShowAdModal(false);
@@ -891,7 +898,7 @@ function App() {
                           } catch (verifyErr) {
                             showToast(t('logFetchFailToast'), 'error');
                           }
-                        }, 2000);
+                        }, 2500);
                       } catch (e) {
                         showToast(t('logFetchFailToast'), 'error');
                       }
