@@ -180,59 +180,56 @@ function App() {
     fetchAdConfig();
   }, []);
 
-  // 광고 차단기 감지 로직 개선 (v0.16: 로컬 화이트리스트 우선 순위 부여)
+  // 광고 차단기 감지 로직 개선 (v0.17: 감지 민감도 강화 및 테스트 모드 도입)
   const checkAdBlocker = async (): Promise<boolean> => {
-    // [테스트를 위해 로컬에서도 감지 허용]
-    // if (!isProduction) return false;
-    
-    let localBlocked = false;
-    let imagesBlocked = false;
-    let fetchBlocked = false;
-
-    // 1순위: 로컬 베이트 스크립트(/js/ads.js) 확인
-    if ((window as any).canRunAds !== true) {
-      localBlocked = true;
+    // [추가] 테스트 파라미터 확인 (?adblock_test=1: 강제 차단, ?adblock_test=0: 강제 허용)
+    const testParam = new URLSearchParams(window.location.search).get('adblock_test');
+    if (testParam === '1') {
+      console.log("[AdBlock Check] Forced by test parameter: true");
+      setAdBlockDetected(true);
+      return true;
+    }
+    if (testParam === '0') {
+      console.log("[AdBlock Check] Forced by test parameter: false");
+      setAdBlockDetected(false);
+      return false;
     }
 
-    // 2순위: 이미지 로드 테스트 (하나라도 실패하면 차단으로 간주)
-    const testImages = [
-      'https://omg10.com/favicon.ico',
-      'https://tab2.clickmon.co.kr/favicon.ico',
-      'https://pagead2.googlesyndication.com/favicon.ico'
-    ];
-    
+    // 1. 로컬 베이트 스크립트(/js/ads.js) 확인
+    const localBlocked = (window as any).canRunAds !== true;
+
+    // 2. 베이트 엘리먼트(DOM) 확인
+    const bait = document.getElementById('ad-bait-element');
+    let domBlocked = false;
+    if (bait) {
+      const style = window.getComputedStyle(bait);
+      // 광고 차단기가 엘리먼트를 숨기거나 높이를 0으로 만드는지 확인
+      if (style.display === 'none' || style.visibility === 'hidden' || bait.offsetHeight === 0) {
+        domBlocked = true;
+      }
+    } else {
+      // 강력한 차단기가 DOM에서 요소를 아예 삭제해버린 경우
+      domBlocked = true;
+    }
+
+    // 3. 이미지 로드 테스트 (구글 패비콘 - 가장 신뢰도가 높으며 광고 차단기의 주 타겟)
+    let imagesBlocked = false;
     try {
-      const imgResults = await Promise.all(testImages.map(url => {
-        return new Promise<boolean>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(false);
-          img.onerror = () => resolve(true);
-          img.src = `${url}?t=${Date.now()}`;
-          setTimeout(() => resolve(true), 2500); // 타임아웃 단축
-        });
-      }));
-      if (imgResults.some(r => r === true)) imagesBlocked = true;
+      imagesBlocked = await new Promise<boolean>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(false);
+        img.onerror = () => resolve(true);
+        img.src = `https://pagead2.googlesyndication.com/favicon.ico?t=${Date.now()}`;
+        setTimeout(() => resolve(true), 3000); // 네트워크 지연 고려
+      });
     } catch (e) {
       imagesBlocked = true;
     }
 
-    // 3순위: 네트워크 도메인 차단 확인 (하나라도 실패하면 차단으로 간주)
-    const adDomains = [
-      'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
-      'https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php'
-    ];
-    
-    for (const domain of adDomains) {
-      try {
-        await fetch(domain, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
-      } catch (error) {
-        fetchBlocked = true;
-        break; 
-      }
-    }
+    // [개선] 과반수 원칙에서 '하나라도 차단 시 감지'로 정책 강화 (보안성 우선)
+    const detected = domBlocked || localBlocked || imagesBlocked;
 
-    // [완료] 최종 결과 반영: 하나라도 감지되면 true (임의 수정 금지)
-    const detected = localBlocked || imagesBlocked || fetchBlocked;
+    console.log(`[AdBlock Check] Local: ${localBlocked}, DOM: ${domBlocked}, Image: ${imagesBlocked} => Detected: ${detected}`);
 
     setAdBlockDetected(detected);
     return detected;
@@ -250,9 +247,10 @@ function App() {
     fetchConfig();
   }, []);
 
-  // isProduction 상태가 true로 변경되면 광고 차단기 검사 실행
+  // isProduction 상태가 true이거나 adblock_test 파라미터가 있으면 광고 차단기 검사 실행
   useEffect(() => {
-    if (isProduction) {
+    const testParam = new URLSearchParams(window.location.search).get('adblock_test');
+    if (isProduction || testParam !== null) {
       checkAdBlocker();
     }
   }, [isProduction]);
@@ -659,6 +657,8 @@ function App() {
 
   return (
     <div className="container">
+      {/* 광고 차단 감지용 베이트 엘리먼트 (사용자에게 보이지 않음, 차단기 필터 리스트가 좋아하는 클래스명 적용) */}
+      <div id="ad-bait-element" className="ad-unit ads-container ad-placement ads-banner pub_300x250 ad_ads adsbox" style={{ position: 'absolute', left: '-9999px', top: '0', width: '1px', height: '1px', pointerEvents: 'none' }}></div>
 
       {/* 1550px 이상일 때만 표시되는 사이드 광고 (CSS로 제어) */}
       <AdSidebar side="left" platform={leftPlatform} bannerId={leftBannerId} />
@@ -698,7 +698,7 @@ function App() {
         <div className="adblock-warning-card glass-morphism animate-in">
           <XCircle size={48} color="#ef4444" />
           <h2>{lang === 'ko' ? '광고 차단기가 감지되었습니다' : 'Ad Blocker Detected'}</h2>
-          <p>
+          <p className="break-words">
             {lang === 'ko' 
               ? 'Subtitle Sync Pro는 광고 수익을 기반으로 운영되고 있습니다. 핵심 기능을 이용하시려면 광고 차단기(AdGuard, uBlock 등)를 해제해 주세요.' 
               : 'Subtitle Sync Pro relies on ad revenue. Please disable your ad blocker (AdGuard, uBlock, etc.) to use the core features.'}
@@ -872,7 +872,7 @@ function App() {
       )}
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
-        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.16. All rights reserved.</p>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.17. All rights reserved.</p>
         <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
           ※ {t('footerDisclaimerTitle')}: {t('footerDisclaimer1')} 
           {t('footerDisclaimer2')}
@@ -904,7 +904,7 @@ function App() {
             </div>
             <div className="ad-modal-body">
               <h2>{adInfo?.type === 'coupang' ? t('adCoupangTitle') : t('adWatchRequired')}</h2>
-              <p style={{ color: '#94a3b8', marginTop: '12px' }}>
+              <p className="break-words" style={{ color: '#94a3b8', marginTop: '12px' }}>
                 {adInfo?.type === 'coupang' ? t('adCoupangDesc') : t('adDisclaimer')}
               </p>
               
@@ -1021,24 +1021,24 @@ function App() {
                 <div className="web-guide animate-in">
                   <section className="purpose-section">
                     <h3>{t('purposeTitle')}</h3>
-                    <p>{t('purposeDesc')}</p>
+                    <p className="break-words">{t('purposeDesc')}</p>
                   </section>
                   <section className="steps-section">
-                    <div className="step-item"><div className="step-num">1</div><p>{t('guideStep1')}</p></div>
-                    <div className="step-item"><div className="step-num">2</div><p>{t('guideStep2')}</p></div>
-                    <div className="step-item"><div className="step-num">3</div><p>{t('guideStep3')}</p></div>
-                    <div className="step-item"><div className="step-num">4</div><p>{t('guideStep4')}</p></div>
+                    <div className="step-item"><div className="step-num">1</div><p className="break-words">{t('guideStep1')}</p></div>
+                    <div className="step-item"><div className="step-num">2</div><p className="break-words">{t('guideStep2')}</p></div>
+                    <div className="step-item"><div className="step-num">3</div><p className="break-words">{t('guideStep3')}</p></div>
+                    <div className="step-item"><div className="step-num">4</div><p className="break-words">{t('guideStep4')}</p></div>
                   </section>
                 </div>
               ) : (
                 <div className="extractor-guide animate-in">
                   <section className="purpose-section">
                     <h3>{t('extTitle')}</h3>
-                    <p>{t('extDesc')}</p>
+                    <p className="break-words">{t('extDesc')}</p>
                   </section>
                   <section className="steps-section">
-                    <div className="step-item"><div className="step-num">1</div><p>{t('extStep1')}</p></div>
-                    <div className="step-item"><div className="step-num">2</div><p>{t('extStep2')}</p></div>
+                    <div className="step-item"><div className="step-num">1</div><p className="break-words">{t('extStep1')}</p></div>
+                    <div className="step-item"><div className="step-num">2</div><p className="break-words">{t('extStep2')}</p></div>
                   </section>
                 </div>
               )}
@@ -1056,16 +1056,16 @@ function App() {
             </div>
             <div className="guide-content" style={{ padding: '20px', fontSize: '0.9rem', lineHeight: '1.6', maxHeight: '600px', overflowY: 'auto' }}>
               <h3>{t('privacy1Title')}</h3>
-              <p>{t('privacy1Desc')}</p>
+              <p className="break-words">{t('privacy1Desc')}</p>
               
               <h3>{t('privacy2Title')}</h3>
-              <p>{t('privacy2Desc')}</p>
+              <p className="break-words">{t('privacy2Desc')}</p>
               
               <h3>{t('privacy3Title')}</h3>
-              <p>{t('privacy3Desc')}</p>
+              <p className="break-words">{t('privacy3Desc')}</p>
               
               <h3>{t('privacy4Title')}</h3>
-              <p>{t('privacy4Desc')}</p>
+              <p className="break-words">{t('privacy4Desc')}</p>
             </div>
             <button className="guide-close-btn" onClick={() => setShowPrivacy(false)}>{t('privacyConfirm')}</button>
           </div>
@@ -1080,13 +1080,13 @@ function App() {
               <button className="close-x" onClick={() => setShowDisclaimer(false)}>&times;</button>
             </div>
             <div className="guide-content" style={{ padding: '20px', fontSize: '1rem', lineHeight: '1.8' }}>
-              <p style={{ marginBottom: '15px' }}>
+              <p className="break-words" style={{ marginBottom: '15px' }}>
                 {t('footerDisclaimer1')}
               </p>
-              <p style={{ color: '#f87171', fontWeight: 'bold' }}>
+              <p className="break-words" style={{ color: '#f87171', fontWeight: 'bold' }}>
                 {t('footerDisclaimer3')}
               </p>
-              <p style={{ marginTop: '15px', color: '#94a3b8', fontSize: '0.9rem' }}>
+              <p className="break-words" style={{ marginTop: '15px', color: '#94a3b8', fontSize: '0.9rem' }}>
                 {t('footerDisclaimer4')}
               </p>
             </div>

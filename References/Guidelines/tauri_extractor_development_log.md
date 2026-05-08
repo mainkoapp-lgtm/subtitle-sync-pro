@@ -500,3 +500,41 @@
 - **수정 과정 및 핵심 코드**:
     - `frontend/src/App.tsx`: `executeActualDownload` 함수 내 `downloadUrl`을 새로운 드롭박스 링크(`https://www.dropbox.com/scl/fi/dzebaz75prvdj9q5sqkqr/v2.0.zip?rlkey=dmd2vgdd26itv7wu9pr3n7xd7&st=t5kzqlq3&dl=1`)로 변경.
 - **결과**: [테스트 필요]
+
+---
+
+### 2026-05-09: 브라우저 서버 통합 배포 및 정책 업데이트
+- **문제점**: 브라우저 서버(프론트엔드, 백엔드, 관리 서버 등) 통합 배포 절차의 명문화 및 실행 필요.
+- **수정 과정 및 핵심 코드**:
+  - `.agent/rules/deployment_policy.md`에 '브라우저 서버 통합 배포' 규칙 추가.
+  - 프로젝트 전체 백업 수행 (`backup/202605090548`).
+  - GitHub (`master` branch) 푸시를 통한 백엔드(Render) 및 프론트엔드(Vercel) 배포 트리거.
+  - Firebase Hosting을 통한 정적 설정 및 관리 도구 배포 (`server` 디렉토리).
+- **결과**: [테스트 필요]
+
+---
+
+### 2026-05-09: 광고 차단기 오탐 해결 및 베이트 엘리먼트 방식 도입 (v0.17)
+- **문제점**: 광고 차단기를 꺼도 감지 경고가 사라지지 않는 현상 발생. 원인은 감지용 외부 리소스(Clickmon 등)가 서버 장애(404)를 일으켜 이를 차단으로 오인한 것이었음.
+- **수정 과정 및 핵심 코드**:
+    1. **베이트 엘리먼트(Bait Element) 도입**: 외부 네트워크에 의존하지 않고, 페이지 내에 광고 차단기가 감지할 만한 클래스명을 가진 숨겨진 `div`를 추가하여 상태를 체크하는 방식 도입.
+    2. **과반수 원칙(Majority Rule)**: 로컬 스크립트(`ads.js`), 베이트 엘리먼트(DOM), 구글 패비콘(Image) 3가지 중 2가지 이상이 감지될 때만 최종 차단으로 판정 (2/3 원칙).
+    3. **정밀 검증**: 가상 브라우저 및 로컬 개발 서버(`http://localhost:5173`)를 통해 실제 광고 노출 중에도 경고창이 뜨지 않음을 최종 확인.
+- **결과**: **[테스트 필요]** (로컬 검증 완료, 운영 서버 배포 대기 중)
+
+### 2026-05-09: 광고 차단 감지 로직 강화 및 테스트 모드(?adblock_test) 도입
+- **문제점**: 광고 차단기가 켜져 있음에도 불구하고, 로컬 스크립트가 차단되지 않는 등의 이유로 감지 시스템이 정상 작동하지 않는 현상 보고됨.
+- **수정 과정 및 핵심 코드**: 
+    1. `frontend/src/App.tsx` 내 `checkAdBlocker` 로직 강화: 기존 복합 조건(`domBlocked || (localBlocked && imagesBlocked)`)을 단순 OR 조건(`domBlocked || localBlocked || imagesBlocked`)으로 변경하여 감지 민감도 극대화.
+    2. 테스트 모드 추가: URL 파라미터 `?adblock_test=1` 접속 시 무조건 차단 경고 노출, `?adblock_test=0` 접속 시 무조건 허용 처리하여 뷰어 및 내부 테스트 편의성 확보.
+    3. 실행 환경 확장: `isProduction`이 `false`인 개발 환경에서도 테스트 파라미터가 감지되면 광고 차단 로직이 즉시 실행되도록 `useEffect` 의존성 및 조건문 개선.
+- **결과**: [성공] (뷰어 테스트를 통해 온오프 기능 및 강화된 감지 로직 정상 작동 확인 완료)
+
+### 2026-05-09: 줄바꿈 및 한글 가독성 최적화 (word-break: keep-all)
+- **문제점**: 한글 단어가 중간에 잘린 채 줄바꿈되는 현상으로 인해 가독성이 저하되고, 긴 영문이나 링크가 영역을 벗어나는 현상 방지 필요.
+- **수정 과정 및 핵심 코드**:
+  1. **사전 백업**: `backup/20260509065254` 외 4개 폴더에 관련 파일 백업 완료.
+  2. **전역 스타일 적용**: `frontend/src/index.css`, `tools/tauri_extractor/public/banner/index.html`, `img/flowstatetimer/index.html`의 `body` 태그에 `word-break: keep-all;` 속성을 강제 적용하여 한글 단어 단위 줄바꿈 보장.
+  3. **넘침 방지 유틸리티**: `index.css`에 `.break-words` 클래스(`word-break: break-word; overflow-wrap: break-word;`)를 추가하여 Tailwind 방식의 예외 처리 지원.
+  4. **컴포넌트 반영**: `App.tsx` 내의 광고 차단 경고, 안내 가이드, 개인정보처리방침, 면책조항 등 텍스트가 많은 요소들에 `break-words` 클래스를 적용하여 긴 영문/링크 대응.
+- **결과**: [테스트 필요]

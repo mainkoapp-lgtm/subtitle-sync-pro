@@ -12,6 +12,11 @@
   --border: rgba(255, 255, 255, 0.1);
 }
 
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -25,6 +30,7 @@ body {
   line-height: 1.5;
   overflow-x: hidden;
   min-height: 100vh;
+  word-break: keep-all;
 }
 
 #root {

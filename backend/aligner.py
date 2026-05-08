@@ -22,6 +22,15 @@ class SubtitleBlock:
             "text": self.text
         }
 
+def srt_time_to_ms(time_str: str) -> int:
+    """SRT 시간 형식(HH:MM:SS,mmm)을 밀리초로 변환"""
+    try:
+        h, m, s_ms = time_str.replace('.', ',').split(':')
+        s, ms = s_ms.split(',')
+        return int(h) * 3600000 + int(m) * 60000 + int(s) * 1000 + int(ms)
+    except:
+        return 0
+
 def ms_to_srt_time(ms: int) -> str:
     """밀리초를 SRT 시간 형식(HH:MM:SS,mmm)으로 변환"""
     s, ms = divmod(ms, 1000)
@@ -198,6 +207,54 @@ def fill_missing_subtitles(results: List[Dict], api_key: str, model_name: str, p
     if progress_callback: progress_callback(100)
     return {"results": results, "usage": total_usage}
 
+def sanitize_results(results: List[Dict]) -> List[Dict]:
+    """중복 및 유령 자막 제거 후처리 로직 (API 비용 없음)"""
+    if not results: return results
+    
+    # 시간순 정렬 (새로 맞춘 시작 시간 기준)
+    sorted_res = sorted(results, key=lambda x: srt_time_to_ms(x["new_start"]))
+    final_results = []
+    
+    for i, current in enumerate(sorted_res):
+        if not current.get("target"):
+            final_results.append(current)
+            continue
+            
+        if not final_results:
+            final_results.append(current)
+            continue
+            
+        prev = final_results[-1]
+        if not prev.get("target"):
+            final_results.append(current)
+            continue
+
+        # 텍스트 및 시간 차이 계산
+        current_text = current["target"]["text"]
+        prev_text = prev["target"]["text"]
+        time_diff = abs(srt_time_to_ms(current["new_start"]) - srt_time_to_ms(prev["new_start"]))
+        
+        # [중복 판정 임계치] 1.5초 이내에 80% 이상 유사한 텍스트가 나오면 중복으로 간주
+        similarity = calculate_similarity(current_text, prev_text)
+        if time_diff < 1500 and similarity > 0.8:
+            logger.info(f"[Sanitizer] 중복 감지 제거: '{current_text}' (유사도: {similarity:.2f}, 간격: {time_diff}ms)")
+            
+            # 우선순위 결정: 번역된 것보다는 실제 매칭된(원본) 자막을 유지
+            if current.get("matched") and not current.get("translated") and prev.get("translated"):
+                final_results[-1] = current # 번역본을 원본 매칭본으로 교체
+            # 그 외의 경우는 먼저 추가된(앞 시간대) 것을 유지하고 현재 것은 무시
+            continue
+            
+        final_results.append(current)
+    
+    # 인덱스 재정렬 (최종 출력용)
+    for idx, res in enumerate(final_results):
+        res["ref_index"] = idx + 1
+        if res.get("target"):
+            res["target"]["index"] = idx + 1
+            
+    return final_results
+
 def align_subtitles(ref_subs: List[SubtitleBlock], target_subs: List[SubtitleBlock], api_key: Optional[str] = None, ai_model: str = "gemini-3.1-flash-lite-preview", progress_callback=None, check_cancel=None, target_lang: str = "ko") -> Dict:
     results = []
     total_ref = len(ref_subs)
@@ -277,4 +334,8 @@ def align_subtitles(ref_subs: List[SubtitleBlock], target_subs: List[SubtitleBlo
         total_usage["total_tokens"] += u.get("total_tokens", 0)
     elif progress_callback:
         progress_callback(100)
+        
+    # [최종 단계] 중복 및 유령 자막 제거 로직 가동
+    results = sanitize_results(results)
+    
     return {"results": results, "usage": total_usage}
