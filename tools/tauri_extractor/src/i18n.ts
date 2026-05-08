@@ -48,6 +48,9 @@ const resources = {
       btn_visit_home: "SubFast 홈페이지 이동",
       status_select_language: "언어를 선택하세요",
       drag_drop_hint: "영상을 여기에 드래그 앤 드롭 하세요",
+      btn_license: "라이선스 정보",
+      license_title: "오픈소스 라이선스",
+      license_close: "닫기",
     }
   },
   en: {
@@ -94,6 +97,9 @@ const resources = {
       btn_visit_home: "Visit SubFast Homepage",
       status_select_language: "Select Language",
       drag_drop_hint: "Drag and drop video here",
+      btn_license: "License Information",
+      license_title: "Open Source Licenses",
+      license_close: "Close",
     }
   },
   ja: {
@@ -186,6 +192,9 @@ const resources = {
       btn_visit_home: "SubFast 官网",
       status_select_language: "选择语言",
       drag_drop_hint: "将视频拖放到此处",
+      btn_license: "开源授权",
+      license_title: "开源软件许可",
+      license_close: "关闭",
     }
   },
   hi: {
@@ -232,6 +241,9 @@ const resources = {
       btn_visit_home: "SubFast होमपेज",
       status_select_language: "भाषा चुनें",
       drag_drop_hint: "वीडियो यहां खींचें और छोड़ें",
+      btn_license: "लाइसेंस जानकारी",
+      license_title: "ओ픈소스 라이선스",
+      license_close: "닫기",
     }
   }
 };

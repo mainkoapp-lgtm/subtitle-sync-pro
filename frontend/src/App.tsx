@@ -52,12 +52,12 @@ interface SyncResult {
 }
 
 // 광고 사이드바 컴포넌트 (App 외부로 이동하여 리렌더링 시 언마운트 방지)
-const AdSidebar = ({ side }: { side: 'left' | 'right' }) => (
+const AdSidebar = ({ side, platform, bannerId }: { side: 'left' | 'right', platform: 'coupang' | 'clickmon', bannerId?: number }) => (
   <div className={`ad-sidebar ad-sidebar-${side}`} style={{ padding: '0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
     <span className="ad-label" style={{ padding: '10px 0 0' }}>ADVERTISEMENT</span>
     <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
-      {side === 'left' ? (
-        <CoupangDynamicBanner id={981842} width="160" height="600" template="carousel" />
+      {platform === 'coupang' ? (
+        <CoupangDynamicBanner id={bannerId} width="160" height="600" template="carousel" />
       ) : (
         <ClickmonBanner width="160" height="600" />
       )}
@@ -66,12 +66,12 @@ const AdSidebar = ({ side }: { side: 'left' | 'right' }) => (
 );
 
 // 모바일 전용 가로 광고 배너
-const MobileAdBanner = ({ id }: { id?: number }) => (
+const MobileAdBanner = ({ id, bannerId, platform = 'coupang' }: { id?: number, bannerId?: number, platform?: 'coupang' | 'clickmon' }) => (
   <div className="mobile-ad-container glass-morphism">
     <span className="ad-label" style={{ fontSize: '9px', marginBottom: '8px' }}>Advertisement</span>
     <div style={{ width: '100%', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
-      {id ? (
-        <CoupangDynamicBanner id={id} width="320" height="100" template="carousel" />
+      {platform === 'coupang' ? (
+        <CoupangDynamicBanner id={bannerId || id} width="320" height="100" template="carousel" />
       ) : (
         <ClickmonBanner width="320" height="100" />
       )}
@@ -106,80 +106,133 @@ function App() {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [adInfo, setAdInfo] = useState<{type: string, link: string, provider: string} | null>(null);
   const [adBlockDetected, setAdBlockDetected] = useState(false);
+  const isDebug = new URLSearchParams(window.location.search).get('test') === '1';
   const [adActionType, setAdActionType] = useState<'sync' | 'download' | null>(null);
   const [tokenUsage, setTokenUsage] = useState<any>(null);
+  const defaultBannerIds = [981842, 981849, 987286, 987287];
+  const [coupangBannerIds, setCoupangBannerIds] = useState<number[]>(defaultBannerIds);
+  // [완료] 쿠팡 배너 ID 랜덤 선택 로직 (임의 수정 금지)
+  const getRandomBannerId = (ids: number[]) => ids[Math.floor(Math.random() * ids.length)];
 
-  // 광고 차단기 감지 로직 강화
-  const checkAdBlocker = async (): Promise<boolean> => {
-    if (!isProduction) return false;
-    
-    let detected = false;
-
-    // 방법 1: Bait Script 확인 (전역 변수 체크)
-    if ((window as any).canRunAds === undefined) {
-      detected = true;
+  const [leftBannerId, setLeftBannerId] = useState<number>(() => {
+    const firstId = getRandomBannerId(defaultBannerIds);
+    return firstId;
+  });
+  const [rightBannerId, setRightBannerId] = useState<number>(() => {
+    const firstId = getRandomBannerId(defaultBannerIds);
+    // 왼쪽과 겹치면 다른 것 선택 (최소 2개 이상의 ID가 있다고 가정)
+    if (defaultBannerIds.length > 1) {
+      let secondId = getRandomBannerId(defaultBannerIds);
+      while (secondId === firstId) {
+        secondId = getRandomBannerId(defaultBannerIds);
+      }
+      return secondId;
     }
+    return firstId;
+  });
+  const [mobileBannerId, setMobileBannerId] = useState<number>(() => getRandomBannerId(defaultBannerIds));
 
-    // 방법 2: Google Ads 및 필수 네트워크 도메인 차단 직접 확인
-    if (!detected) {
-      const adDomains = [
-        'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
-        'https://googleads.g.doubleclick.net/pagead/ads',
-        'https://quge5.com/88/tag.min.js', // Monetag script
-        'https://omg10.com/4/10907359', // Monetag actual ad link
-        'https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php' // Clickmon
-      ];
-      
-      for (const domain of adDomains) {
-        try {
-          // fetch 시도. AdGuard가 차단하면 TypeError가 발생함
-          await fetch(domain, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
-        } catch (error) {
-          detected = true;
-          break;
+  // [완료] 플랫폼 랜덤 선택 로직 (쿠팡/클릭몬) (임의 수정 금지)
+  const getRandomPlatform = () => Math.random() > 0.5 ? 'coupang' : 'clickmon';
+
+  const [leftPlatform, setLeftPlatform] = useState<'coupang' | 'clickmon'>(getRandomPlatform);
+  const [rightPlatform, setRightPlatform] = useState<'coupang' | 'clickmon'>(getRandomPlatform);
+  const [mobilePlatform, setMobilePlatform] = useState<'coupang' | 'clickmon'>(getRandomPlatform);
+
+  // 파이어베이스에서 광고 설정 가져오기 (배너 로테이션용)
+  useEffect(() => {
+    const fetchAdConfig = async () => {
+      try {
+        // 파이어베이스 호스팅에서 광고 설정 가져오기
+        const CONFIG_URL = "https://subfast-manager.web.app/web_banners.json";
+        const res = await axios.get(CONFIG_URL);
+        if (res.data) {
+          if (res.data.banner_ids && Array.isArray(res.data.banner_ids) && res.data.banner_ids.length > 0) {
+            setCoupangBannerIds(res.data.banner_ids);
+            // 서버 데이터 기반으로 각각 랜덤 선택 덮어쓰기 (좌우 중복 방지)
+            const ids = res.data.banner_ids;
+            const newLeft = getRandomBannerId(ids);
+            setLeftBannerId(newLeft);
+            
+            if (ids.length > 1) {
+              let newRight = getRandomBannerId(ids);
+              while (newRight === newLeft) {
+                newRight = getRandomBannerId(ids);
+              }
+              setRightBannerId(newRight);
+            } else {
+              setRightBannerId(newLeft);
+            }
+            
+            setMobileBannerId(getRandomBannerId(ids));
+            console.log("새로운 배너 ID들 로드됨 (중복 방지 적용)");
+          }
+          
+          // 좌우 및 모바일 플랫폼 설정 로드 (서버 우선)
+          if (res.data.left_platform) setLeftPlatform(res.data.left_platform);
+          if (res.data.right_platform) setRightPlatform(res.data.right_platform);
+          if (res.data.mobile_platform) setMobilePlatform(res.data.mobile_platform);
         }
+      } catch (e) {
+        console.warn("서버 커스텀 광고 설정을 찾을 수 없어, 기본 내장된 설정으로 작동합니다.");
+      }
+    };
+    fetchAdConfig();
+  }, []);
+
+  // 광고 차단기 감지 로직 개선 (v0.16: 로컬 화이트리스트 우선 순위 부여)
+  const checkAdBlocker = async (): Promise<boolean> => {
+    // [테스트를 위해 로컬에서도 감지 허용]
+    // if (!isProduction) return false;
+    
+    let localBlocked = false;
+    let imagesBlocked = false;
+    let fetchBlocked = false;
+
+    // 1순위: 로컬 베이트 스크립트(/js/ads.js) 확인
+    if ((window as any).canRunAds !== true) {
+      localBlocked = true;
+    }
+
+    // 2순위: 이미지 로드 테스트 (하나라도 실패하면 차단으로 간주)
+    const testImages = [
+      'https://omg10.com/favicon.ico',
+      'https://tab2.clickmon.co.kr/favicon.ico',
+      'https://pagead2.googlesyndication.com/favicon.ico'
+    ];
+    
+    try {
+      const imgResults = await Promise.all(testImages.map(url => {
+        return new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(false);
+          img.onerror = () => resolve(true);
+          img.src = `${url}?t=${Date.now()}`;
+          setTimeout(() => resolve(true), 2500); // 타임아웃 단축
+        });
+      }));
+      if (imgResults.some(r => r === true)) imagesBlocked = true;
+    } catch (e) {
+      imagesBlocked = true;
+    }
+
+    // 3순위: 네트워크 도메인 차단 확인 (하나라도 실패하면 차단으로 간주)
+    const adDomains = [
+      'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
+      'https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php'
+    ];
+    
+    for (const domain of adDomains) {
+      try {
+        await fetch(domain, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+      } catch (error) {
+        fetchBlocked = true;
+        break; 
       }
     }
 
-    // 방법 3: 특정 광고 스크립트 객체 존재 확인
-    if (!detected) {
-      const isAdsbygoogleBlocked = (window as any).adsbygoogle && (window as any).adsbygoogle.loaded === false;
-      const isMonetagBlocked = !(window as any).Monetag && !document.querySelector('script[src*="quge5.com"]');
-      
-      if (isAdsbygoogleBlocked || isMonetagBlocked) {
-        detected = true;
-      }
-    }
-
-    // 방법 4: DOM 기반 체크 (강화된 베이트 요소)
-    if (!detected) {
-      const bait = document.createElement('div');
-      // 광고 차단기가 흔히 타겟팅하는 클래스명들 대거 투입
-      bait.setAttribute('class', 'pub_300x250 pub_300x250m pub_728x90 text-ad text_ad text_ads text-ads ad-wrapper ad-container ad-banner adsbox');
-      bait.setAttribute('id', 'ad-banner-test');
-      bait.setAttribute('style', 'width: 1px !important; height: 1px !important; position: absolute !important; left: -10000px !important; top: -1000px !important; display: block !important;');
-      document.body.appendChild(bait);
-      
-      const isHidden = await new Promise<boolean>(resolve => {
-        setTimeout(() => {
-          const style = window.getComputedStyle(bait);
-          const hidden = bait.offsetParent === null || 
-                         bait.offsetHeight === 0 || 
-                         style.display === 'none' || 
-                         style.visibility === 'hidden' ||
-                         style.opacity === '0';
-          resolve(hidden);
-        }, 150); // 지연 시간 소폭 상향
-      });
-      
-      if (isHidden) detected = true;
-      document.body.removeChild(bait);
-    }
-
-    // 방법 5: 외부 스크립트 로드 실패 핸들러 확인 (간접적)
-    if (!detected && (window as any).adBlockDetectedByScript === true) {
-      detected = true;
-    }
+    // [완료] 최종 결과 반영: 하나라도 감지되면 true (임의 수정 금지)
+    const detected = localBlocked || imagesBlocked || fetchBlocked;
 
     setAdBlockDetected(detected);
     return detected;
@@ -190,10 +243,6 @@ function App() {
       try {
         const res = await axios.get('/api/config');
         setIsProduction(res.data.isProduction);
-        // 서버 모드 확인 후 광고 차단기 체크
-        if (res.data.isProduction) {
-          checkAdBlocker();
-        }
       } catch (e) {
         console.error("서버 설정을 불러오는데 실패했습니다.", e);
       }
@@ -201,13 +250,13 @@ function App() {
     fetchConfig();
   }, []);
 
-  const trackClick = async (buttonId: string) => {
-    try {
-      await axios.post('/api/collect-click', { button_id: buttonId });
-    } catch (e) {
-      console.error("클릭 로그 수집 실패", e);
+  // isProduction 상태가 true로 변경되면 광고 차단기 검사 실행
+  useEffect(() => {
+    if (isProduction) {
+      checkAdBlocker();
     }
-  };
+  }, [isProduction]);
+
 
   const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -374,6 +423,7 @@ function App() {
     setRefFile(null);
     setTargetFile(null);
     setResults([]);
+    setTokenUsage(null);
     setFileMismatchWarning(null);
     try {
       // 서버 로그도 함께 초기화
@@ -387,14 +437,22 @@ function App() {
 
   const loadSamples = async () => {
     try {
-      const res = await axios.get('/api/samples');
-      if (res.data.status === 'success') {
-        const refBlob = new Blob([res.data.ref_content], { type: 'text/plain' });
-        const targetBlob = new Blob([res.data.target_content], { type: 'text/plain' });
-        setRefFile(new File([refBlob], res.data.ref_name, { type: 'text/plain' }));
-        setTargetFile(new File([targetBlob], res.data.target_name, { type: 'text/plain' }));
-        showToast(t('sampleUploadedToast'));
-      }
+      const [refRes, targetRes] = await Promise.all([
+        fetch('/test_data/test_ref.srt'),
+        fetch('/test_data/test_target.smi')
+      ]);
+      
+      if (!refRes.ok || !targetRes.ok) throw new Error("Sample files not found");
+
+      const refText = await refRes.text();
+      const targetText = await targetRes.text();
+
+      const refBlob = new Blob([refText], { type: 'text/plain' });
+      const targetBlob = new Blob([targetText], { type: 'text/plain' });
+      
+      setRefFile(new File([refBlob], "Terminator_Ref.srt", { type: 'text/plain' }));
+      setTargetFile(new File([targetBlob], "Terminator_Target.smi", { type: 'text/plain' }));
+      showToast(t('sampleUploadedToast'));
     } catch (e) {
       console.error(e);
       showToast(t('sampleLoadFailToast'), 'error');
@@ -429,7 +487,7 @@ function App() {
   };
 
   const handleSync = async () => {
-    if (!refFile || !targetFile) return;
+    if (!isDebug && (!refFile || !targetFile)) return;
 
     // [강력 보안] 실행 직전 광고 차단기 재검사
     const isBlocked = await checkAdBlocker();
@@ -438,8 +496,6 @@ function App() {
       return;
     }
 
-    // 클릭 수집
-    trackClick("sync_button");
 
     if (isProduction) {
       setAdActionType('sync');
@@ -507,6 +563,7 @@ function App() {
         return;
       }
       setResults(response.data.data);
+      if (response.data.usage) setTokenUsage(response.data.usage);
       const matchCount = response.data.data.filter((r: any) => r.matched).length;
       const rate = matchCount / response.data.data.length;
       showToast(t('syncCompleteToast', { n: (rate * 100).toFixed(1) }));
@@ -567,8 +624,6 @@ function App() {
       return;
     }
 
-    // 클릭 수집
-    trackClick("app_download_button");
     
     if (isProduction) {
       setAdActionType('download');
@@ -597,50 +652,20 @@ function App() {
   };
 
   const executeActualDownload = () => {
-    const downloadUrl = "https://www.dropbox.com/scl/fi/cau17f49dl4ceisutogk1/SubFast-Extractor_v0.1.exe?rlkey=q8v9l63kh7nmdccwen4vrj31n&st=8hoz748d&dl=1";
+    const downloadUrl = "https://www.dropbox.com/scl/fi/dzebaz75prvdj9q5sqkqr/v2.0.zip?rlkey=dmd2vgdd26itv7wu9pr3n7xd7&st=t5kzqlq3&dl=1";
     window.location.href = downloadUrl;
     axios.post('/api/log-action', { message: "[앱 다운로드 실행] 광고 확인 완료 후 다운로드 시작됨" }).catch(() => {});
   };
 
   return (
     <div className="container">
-      {/* 광고 차단기 경고 모달 */}
-      {adBlockDetected && (
-        <div className="modal-overlay adblock-overlay" style={{ zIndex: 9999, backdropFilter: 'blur(20px)' }}>
-          <div className="guide-modal glass-morphism animate-in" style={{ maxWidth: '450px', textAlign: 'center', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-            <div style={{ padding: '40px 20px' }}>
-              <XCircle size={64} color="#ef4444" style={{ margin: '0 auto 20px' }} />
-              <h2 style={{ color: '#ef4444', marginBottom: '15px' }}>{lang === 'ko' ? '광고 차단기가 감지되었습니다' : 'Ad Blocker Detected'}</h2>
-              <p style={{ color: '#f8fafc', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '25px' }}>
-                {lang === 'ko' 
-                  ? '죄송합니다. 본 서비스는 무료 운영을 위해 광고 수익을 기반으로 하고 있습니다. 광고 차단기를 끄지 않으면 서비스를 이용하실 수 없습니다.' 
-                  : 'Sorry, this service relies on ad revenue to stay free. You cannot use the service unless you disable your ad blocker.'}
-              </p>
-              <div style={{ padding: '15px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '30px' }}>
-                <p style={{ fontSize: '0.9rem', color: '#fca5a5' }}>
-                  {lang === 'ko' 
-                    ? '광고 차단기(AdGuard, uBlock 등)를 해제한 후 페이지를 새로고침(F5) 해주세요.' 
-                    : 'Please disable your ad blocker (AdGuard, uBlock, etc.) and refresh the page (F5).'}
-                </p>
-              </div>
-              <button 
-                onClick={() => window.location.reload()}
-                className="sync-btn"
-                style={{ width: '100%', justifyContent: 'center', background: '#ef4444' }}
-              >
-                {lang === 'ko' ? '새로고침하여 다시 시도' : 'Refresh and Try Again'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 1550px 이상일 때만 표시되는 사이드 광고 (CSS로 제어) */}
-      <AdSidebar side="left" />
-      <AdSidebar side="right" />
+      <AdSidebar side="left" platform={leftPlatform} bannerId={leftBannerId} />
+      <AdSidebar side="right" platform={rightPlatform} bannerId={rightBannerId} />
 
       {/* 모바일/태블릿용 상단 광고 */}
-      <MobileAdBanner id={981842} />
+      <MobileAdBanner bannerId={mobileBannerId} platform={mobilePlatform} />
 
       <header>
         <div className="logo">
@@ -657,159 +682,197 @@ function App() {
             <Download size={18} /> {t('downloadApp')}
           </button>
           <button className="log-btn help-btn" onClick={() => setShowGuide(true)}>{t('guideMenu')}</button>
+          {import.meta.env.DEV && (
+            <button 
+              className="log-btn" 
+              onClick={loadSamples}
+              style={{ backgroundColor: '#4f46e5', color: 'white', border: 'none' }}
+            >
+              샘플 로드(DEV)
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="settings-bar glass-morphism" style={{ justifyContent: 'center' }}>
-        <div className="setting-group flex-1" style={{ flexDirection: 'column', alignItems: 'center', gap: '5px', maxWidth: '860px', margin: '0 auto', width: '100%' }}>
-          <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
-            <label style={{ whiteSpace: 'nowrap', fontSize: '0.95rem', fontWeight: 'bold' }}>{t('apiKeyLabel')} (제미나이 API)</label>
-            <div className="api-input-group" style={{ flex: 'none', width: '380px' }}>
-              <input 
-                type="text" 
-                placeholder={t('apiKeyPlaceholder')} 
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              <button className="save-btn" onClick={handleSaveSettings}>{t('saveSettings')}</button>
-            </div>
-          </div>
-          <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>
-            {t('apiKeyNotice')} 
-            <button 
-              onClick={() => setShowDisclaimer(true)} 
-              style={{ background: 'none', border: 'none', color: '#6366f1', textDecoration: 'underline', cursor: 'pointer', marginLeft: '5px', fontSize: '0.8rem' }}
-            >
-              {t('footerDisclaimerBtn')}
-            </button>
+      {adBlockDetected ? (
+        <div className="adblock-warning-card glass-morphism animate-in">
+          <XCircle size={48} color="#ef4444" />
+          <h2>{lang === 'ko' ? '광고 차단기가 감지되었습니다' : 'Ad Blocker Detected'}</h2>
+          <p>
+            {lang === 'ko' 
+              ? 'Subtitle Sync Pro는 광고 수익을 기반으로 운영되고 있습니다. 핵심 기능을 이용하시려면 광고 차단기(AdGuard, uBlock 등)를 해제해 주세요.' 
+              : 'Subtitle Sync Pro relies on ad revenue. Please disable your ad blocker (AdGuard, uBlock, etc.) to use the core features.'}
           </p>
+          <div className="warning-hint">
+            {lang === 'ko' 
+              ? '차단 해제 후 아래 버튼을 눌러 페이지를 새로고침(F5) 하시면 즉시 이용이 가능합니다.' 
+              : 'Please refresh the page (F5) after disabling to gain access.'}
+          </div>
+          <button onClick={() => window.location.reload()} className="sync-btn refresh-btn">
+            {lang === 'ko' ? '새로고침하여 다시 시도' : 'Refresh and Try Again'}
+          </button>
         </div>
-      </div>
-
-      <main>
-        {/* ... 메인 업로드 및 결과 섹션 기존과 동일 ... */}
-        <section className="upload-section">
-          <div className="upload-grid">
-            <div 
-              className={`upload-card glass-morphism ${refFile ? 'active' : ''} ${isRefDragging ? 'dragging' : ''}`}
-              onDragOver={(e) => onDragOver(e, 'ref')}
-              onDragLeave={() => onDragLeave('ref')}
-              onDrop={(e) => onDrop(e, 'ref')}
-            >
-              <Upload className="icon" />
-              <h3>{t('refSubTitle')}</h3>
-              <p>{t('refSubDesc')}</p>
-              <input type="file" accept=".srt,.smi" onChange={(e) => setRefFile(e.target.files?.[0] || null)} />
-              {refFile && <span className="filename">{refFile.name}</span>}
-            </div>
-
-            <div 
-              className={`upload-card glass-morphism ${targetFile ? 'active' : ''} ${isTargetDragging ? 'dragging' : ''}`}
-              onDragOver={(e) => onDragOver(e, 'target')}
-              onDragLeave={() => onDragLeave('target')}
-              onDrop={(e) => onDrop(e, 'target')}
-            >
-              <Upload className="icon" />
-              <h3>{t('targetSubTitle')}</h3>
-              <p>{t('targetSubDesc')}</p>
-              <input type="file" accept=".srt,.smi" onChange={(e) => setTargetFile(e.target.files?.[0] || null)} />
-              {targetFile && <span className="filename">{targetFile.name}</span>}
-            </div>
-          </div>
-
-          {fileMismatchWarning && (
-            <div className="mismatch-warning-banner">
-              <AlertCircle size={20} />
-              <span>{fileMismatchWarning}</span>
-            </div>
-          )}
-
-          <div className="action-group">
-            <button className="sync-btn" onClick={handleSync} disabled={!refFile || !targetFile || syncing}>
-              {syncing ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <RefreshCcw className="spinning" /> <span>{syncProgress}%</span>
+      ) : (
+        /* [완료] 메인 기능 영역: 광고 차단 감지 시 경고 카드로 대체 (임의 수정 금지) */
+        <>
+          <div className="settings-bar glass-morphism" style={{ justifyContent: 'center' }}>
+            <div className="setting-group flex-1" style={{ flexDirection: 'column', alignItems: 'center', gap: '5px', maxWidth: '860px', margin: '0 auto', width: '100%' }}>
+              <div className="api-input-container" style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                <label style={{ whiteSpace: 'nowrap', fontSize: '0.95rem', fontWeight: 'bold' }}>{t('apiKeyLabel')} (제미나이 API)</label>
+                <div className="api-input-group" style={{ flex: 'none' }}>
+                  <input 
+                    type="text" 
+                    placeholder={t('apiKeyPlaceholder')} 
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                  />
+                  <button className="save-btn" onClick={handleSaveSettings}>{t('saveSettings')}</button>
                 </div>
-              ) : t('syncStart')}
-            </button>
-            {syncing ? (
-              <button className="reset-btn stop-btn" onClick={handleStop} style={{ backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444' }}>
-                <XCircle size={18} /> {t('syncStop')}
-              </button>
-            ) : (refFile || targetFile || results.length > 0) ? (
-              <button className="reset-btn" onClick={handleReset}>
-                <RefreshCcw size={18} /> {t('syncReset')}
-              </button>
-            ) : null}
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>
+                {t('apiKeyNotice')} 
+                <button 
+                  onClick={() => setShowDisclaimer(true)} 
+                  style={{ background: 'none', border: 'none', color: '#6366f1', textDecoration: 'underline', cursor: 'pointer', marginLeft: '5px', fontSize: '0.8rem' }}
+                >
+                  {t('footerDisclaimerBtn')}
+                </button>
+              </p>
+            </div>
           </div>
-          
-          {/* 모바일/태블릿용 중간 광고 */}
-          <MobileAdBanner />
-        </section>
 
-        {showLogs && (
-          <section className="logs-view glass-morphism">
-            <div className="logs-header">
-              <h3>{t('sysLogs')}</h3>
-              <div className="logs-actions">
-                <button className="copy-btn" onClick={() => {
-                  navigator.clipboard.writeText(logs);
-                  showToast(t('logCopiedToast'));
-                }}><Copy size={14} /> {t('logCopy')}</button>
-                <button className="close-btn" onClick={() => setShowLogs(false)}>{t('logClose')}</button>
-              </div>
-            </div>
-            <pre className="logs-content">{logs}</pre>
-          </section>
-        )}
+          <main>
+            <section className="upload-section">
+              <div className="upload-grid">
+                <div 
+                  className={`upload-card glass-morphism ${refFile ? 'active' : ''} ${isRefDragging ? 'dragging' : ''}`}
+                  onDragOver={(e) => onDragOver(e, 'ref')}
+                  onDragLeave={() => onDragLeave('ref')}
+                  onDrop={(e) => onDrop(e, 'ref')}
+                >
+                  <Upload className="icon" />
+                  <h3>{t('refSubTitle')}</h3>
+                  <p>{t('refSubDesc')}</p>
+                  <input type="file" accept=".srt,.smi" onChange={(e) => setRefFile(e.target.files?.[0] || null)} />
+                  {refFile && <span className="filename">{refFile.name}</span>}
+                </div>
 
-        {results.length > 0 && (
-          <section className="results-section glass-morphism">
-            <div className="results-header">
-              <h2>{t('syncResultTitle', { n: results.length })}</h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
-                  {t('originMatched')} <strong>{results.filter(r => r.matched && !r.translated).length}</strong> | {t('aiTranslated')} <strong style={{ color: '#818cf8' }}>{results.filter(r => r.translated).length}</strong> | {t('failedCount')} <strong style={{ color: '#ef4444' }}>{results.filter(r => !r.matched).length}</strong>
-                  {tokenUsage && (
-                    <span style={{ marginLeft: '12px', paddingLeft: '12px', borderLeft: '1px solid rgba(255,255,255,0.1)', color: '#10b981' }}>
-                      Token: <strong>{tokenUsage.total_tokens.toLocaleString()}</strong>
-                    </span>
-                  )}
-                </span>
-                <button className="download-btn" onClick={handleDownload}><Download size={18} /> {t('downloadResult')}</button>
+                <div 
+                  className={`upload-card glass-morphism ${targetFile ? 'active' : ''} ${isTargetDragging ? 'dragging' : ''}`}
+                  onDragOver={(e) => onDragOver(e, 'target')}
+                  onDragLeave={() => onDragLeave('target')}
+                  onDrop={(e) => onDrop(e, 'target')}
+                >
+                  <Upload className="icon" />
+                  <h3>{t('targetSubTitle')}</h3>
+                  <p>{t('targetSubDesc')}</p>
+                  <input type="file" accept=".srt,.smi" onChange={(e) => setTargetFile(e.target.files?.[0] || null)} />
+                  {targetFile && <span className="filename">{targetFile.name}</span>}
+                </div>
               </div>
-            </div>
-            <div className="results-list">
-              {results.slice(0, displayLimit).map((res, i) => (
-                <div key={i} className={`result-item ${res.matched ? 'matched' : 'failed'}`}>
-                  <div className="res-idx">{res.ref.index}</div>
-                  <div className="res-content">
-                    <div className="res-meta">
-                      <span className="res-time">{res.new_start} → {res.new_end}</span>
-                      {res.matched && <span className="res-score">{t('similarity')} {(res.score * 100).toFixed(1)}%</span>}
+
+              {fileMismatchWarning && (
+                <div className="mismatch-warning-banner">
+                  <AlertCircle size={20} />
+                  <span>{fileMismatchWarning}</span>
+                </div>
+              )}
+
+              <div className="action-group">
+                <button className="sync-btn" onClick={handleSync} disabled={(!isDebug && (!refFile || !targetFile)) || syncing}>
+                  {syncing ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <RefreshCcw className="spinning" /> <span>{syncProgress}%</span>
                     </div>
-                    <div className="res-texts">
-                      <div className="ref-text">{res.ref.text}</div>
-                      <div className="target-text">
-                        {res.matched ? res.target?.text : <span className="error">{t('matchFailed')}</span>}
+                  ) : t('syncStart')}
+                </button>
+
+                {results.length > 0 && !syncing && (
+                  <button className="sync-btn" onClick={handleDownload} style={{ background: 'var(--accent)', boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)' }}>
+                    <Download size={18} /> {t('downloadResult')}
+                  </button>
+                )}
+
+                {syncing ? (
+                  <button className="reset-btn stop-btn" onClick={handleStop} style={{ backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444' }}>
+                    <XCircle size={18} /> {t('syncStop')}
+                  </button>
+                ) : (refFile || targetFile || results.length > 0) ? (
+                  <button className="reset-btn" onClick={handleReset}>
+                    <RefreshCcw size={18} /> {t('syncReset')}
+                  </button>
+                ) : null}
+              </div>
+              
+              {/* 모바일/태블릿용 중간 광고 */}
+              <MobileAdBanner platform={mobilePlatform} />
+            </section>
+
+            {showLogs && (
+              <section className="logs-view glass-morphism">
+                <div className="logs-header">
+                  <h3>{t('sysLogs')}</h3>
+                  <div className="logs-actions">
+                    <button className="copy-btn" onClick={() => {
+                      navigator.clipboard.writeText(logs);
+                      showToast(t('logCopiedToast'));
+                    }}><Copy size={14} /> {t('logCopy')}</button>
+                    <button className="close-btn" onClick={() => setShowLogs(false)}>{t('logClose')}</button>
+                  </div>
+                </div>
+                <pre className="logs-content">{logs}</pre>
+              </section>
+            )}
+
+            {results.length > 0 && (
+              <section className="results-section glass-morphism">
+                <div className="results-header">
+                  <h2>{t('syncResultTitle', { n: results.length })}</h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+                      {t('originMatched')} <strong>{results.filter(r => r.matched && !r.translated).length}</strong> | {t('aiTranslated')} <strong style={{ color: '#818cf8' }}>{results.filter(r => r.translated).length}</strong> | {t('failedCount')} <strong style={{ color: '#ef4444' }}>{results.filter(r => !r.matched).length}</strong>
+                      {tokenUsage && (
+                        <span style={{ marginLeft: '12px', paddingLeft: '12px', borderLeft: '1px solid rgba(255,255,255,0.1)', color: '#10b981' }}>
+                          Token: <strong>{tokenUsage.total_tokens.toLocaleString()}</strong>
+                        </span>
+                      )}
+                    </span>
+                    <button className="download-btn" onClick={handleDownload}><Download size={18} /> {t('downloadResult')}</button>
+                  </div>
+                </div>
+                <div className="results-list">
+                  {results.slice(0, displayLimit).map((res, i) => (
+                    <div key={i} className={`result-item ${res.matched ? 'matched' : 'failed'}`}>
+                      <div className="res-idx">{res.ref.index}</div>
+                      <div className="res-content">
+                        <div className="res-meta">
+                          <span className="res-time">{res.new_start} → {res.new_end}</span>
+                          {res.matched && <span className="res-score">{t('similarity')} {(res.score * 100).toFixed(1)}%</span>}
+                        </div>
+                        <div className="res-texts">
+                          <div className="ref-text">{res.ref.text}</div>
+                          <div className="target-text">
+                            {res.matched ? res.target?.text : <span className="error">{t('matchFailed')}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="res-status">
+                        {res.matched ? <CheckCircle color="#10b981" /> : <AlertCircle color="#ef4444" />}
                       </div>
                     </div>
-                  </div>
-                  <div className="res-status">
-                    {res.matched ? <CheckCircle color="#10b981" /> : <AlertCircle color="#ef4444" />}
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              </section>
+            )}
 
-        {/* 모바일/태블릿용 하단 광고 */}
-        <MobileAdBanner id={981842} />
-      </main>
+            {/* 모바일/태블릿용 하단 광고 */}
+            <MobileAdBanner id={981842} platform={mobilePlatform} />
+          </main>
+        </>
+      )}
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
-        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.14. All rights reserved.</p>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.16. All rights reserved.</p>
         <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
           ※ {t('footerDisclaimerTitle')}: {t('footerDisclaimer1')} 
           {t('footerDisclaimer2')}
@@ -859,14 +922,10 @@ function App() {
                         const { type, link } = adInfo;
                         
                         if (type === 'clickmon') {
-                          const c = 'https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php?PopAd=CM_M_1003067%7C%5E%7CCM_A_1156063%7C%5E%7CAdver_M=2&mon_di=';
-                          const script = document.createElement('script');
-                          script.type = 'text/javascript';
-                          script.src = c + '&mon_rf=' + encodeURIComponent(document.referrer) + '&mon_direct_url=' + encodeURIComponent('PASSBACK_INPUT');
-                          document.body.appendChild(script);
+                          window.open('/ad-bridge.html?type=clickmon', '_blank', 'width=800,height=600');
                           adTriggered = true;
                         } else if (link) {
-                          window.open(link, '_blank');
+                          window.open(`/ad-bridge.html?target=${encodeURIComponent(link)}`, '_blank', 'width=800,height=600');
                           adTriggered = true;
                         }
                         

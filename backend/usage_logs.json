@@ -1,0 +1,50 @@
+[
+  {
+    "task_id": "task_k4amt5vto",
+    "timestamp": "2026-05-09T03:50:30.770518",
+    "model": "gemini-3.1-flash-lite-preview",
+    "usage": {
+      "prompt_tokens": 18597,
+      "candidates_tokens": 1461,
+      "total_tokens": 20058
+    },
+    "file_info": {
+      "ref": "Terminator_Ref.srt",
+      "target": "Terminator_Target.smi",
+      "ref_count": 69,
+      "target_count": 85
+    }
+  },
+  {
+    "task_id": "task_0us3x5oyi",
+    "timestamp": "2026-05-09T03:46:23.790803",
+    "model": "gemini-3.1-flash-lite-preview",
+    "usage": {
+      "prompt_tokens": 272618,
+      "candidates_tokens": 18965,
+      "total_tokens": 291583
+    },
+    "file_info": {
+      "ref": "Terminator_Ref.srt",
+      "target": "Terminator_Target.smi",
+      "ref_count": 816,
+      "target_count": 835
+    }
+  },
+  {
+    "task_id": "task_ylkvbzkmf",
+    "timestamp": "2026-05-09T03:43:07.650486",
+    "model": "gemini-3.1-flash-lite-preview",
+    "usage": {
+      "prompt_tokens": 266847,
+      "candidates_tokens": 17559,
+      "total_tokens": 284406
+    },
+    "file_info": {
+      "ref": "Terminator_Ref.srt",
+      "target": "Terminator_Target.smi",
+      "ref_count": 816,
+      "target_count": 835
+    }
+  }
+]

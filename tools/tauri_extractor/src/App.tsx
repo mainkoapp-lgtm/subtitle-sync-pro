@@ -35,7 +35,7 @@ interface RemoteConfig {
 }
 
 const CONFIG_URL = "https://subfast-manager.web.app/latest_version.json";
-const CURRENT_VERSION = "0.1";
+const CURRENT_VERSION = "0.2.0";
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -54,6 +54,9 @@ function App() {
   const [progressPercent, setProgressPercent] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   
+  // OCR Options
+  const [ocrLanguage, setOcrLanguage] = useState("한국어");
+  
   // Save Location Config
   const [saveToSameFolder, setSaveToSameFolder] = useState(true);
   const [customSavePath, setCustomSavePath] = useState("");
@@ -64,13 +67,18 @@ function App() {
   const [lastResult, setLastResult] = useState({ success: 0, total: 0 });
   const [config, setConfig] = useState<RemoteConfig | null>(null);
   const [showNotice, setShowNotice] = useState(false);
+  const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [killSwitch, setKillSwitch] = useState(false);
 
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
     const setupListener = async () => {
-      unlisten = await listen<number>("extract-progress", (event) => {
-        setProgressPercent(event.payload);
+      unlisten = await listen<{status: string, percentage: number, message: string}>("extract-progress", (event) => {
+        // [완료] 진행률 리스너 - 중단 요청 시 이벤트 무시 로직 적용 (임의 수정 금지)
+        if (isCancelled.current) return;
+        const { percentage, message } = event.payload;
+        setProgressPercent(percentage);
+        if (message) setProgressMsg(message);
       });
     };
     setupListener();
@@ -93,8 +101,8 @@ function App() {
     };
     window.addEventListener('message', handleMessage);
 
-    // Fetch remote config
-    fetch(CONFIG_URL)
+    // Fetch remote config (캐시 방지를 위해 타임스탬프 추가)
+    fetch(`${CONFIG_URL}?t=${Date.now()}`)
       .then(r => r.json())
       .then((data: RemoteConfig) => {
         setConfig(data);
@@ -115,6 +123,33 @@ function App() {
 
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  useEffect(() => {
+    // 자동 언어 선택 로직
+    const pgsTracks = Array.from(selectedTracks).filter(idx => {
+      const tr = tracks.find(x => x.index === idx);
+      return tr && !tr.is_text_based && tr.codec_name?.includes("pgs");
+    });
+    
+    if (pgsTracks.length > 0) {
+      const firstPgsTrack = tracks.find(x => x.index === pgsTracks[0]);
+      const lang = firstPgsTrack?.tags?.language?.toLowerCase();
+      if (lang === 'eng') {
+        setOcrLanguage("영어");
+      } else if (lang === 'kor') {
+        setOcrLanguage("한국어");
+      }
+    }
+  }, [selectedTracks, tracks]);
+
+  const resetApp = () => {
+    setVideoPath("");
+    setTracks([]);
+    setSelectedTracks(new Set());
+    setIsDone(false);
+    setProgressPercent(0);
+    setProgressMsg("");
+  };
 
   async function handleFile(path: string) {
     setVideoPath(path);
@@ -226,7 +261,11 @@ function App() {
       
       // If it's an image track, we must use sup/sub regardless of requested format
       if (!track.is_text_based) {
-        ext = track.codec_name.includes("pgs") ? "sup" : track.codec_name.includes("dvd") ? "sub" : "srt";
+        if (track.codec_name?.includes("pgs")) {
+            ext = "srt"; // OCR process will output SRT
+        } else {
+            ext = track.codec_name?.includes("dvd") ? "sub" : "srt";
+        }
       }
 
       const lang = track.tags?.language || 'und';
@@ -243,11 +282,19 @@ function App() {
       }
       
       try {
-        await invoke("extract_subtitle", { 
+        let invokeCmd = "extract_subtitle";
+        let invokeArgs: any = { 
           videoPath: videoPath, 
           trackIndex: trackIdx, 
           outputPath: outputPath 
-        });
+        };
+
+        if (!track.is_text_based && track.codec_name?.includes("pgs")) {
+          invokeCmd = "extract_pgs_subtitle";
+          invokeArgs.language = ocrLanguage;
+        }
+
+        await invoke(invokeCmd, invokeArgs);
         successCount++;
       } catch (e: any) {
         if (e && typeof e === 'string' && e.includes("Cancelled")) {
@@ -307,13 +354,18 @@ function App() {
         <div className="modal-content kill-switch">
           <h2>{t('update_required')}</h2>
           <p>{t('update_msg', { current: CURRENT_VERSION, latest: config?.latest_version })}</p>
-          <button className="btn-primary" onClick={() => window.open("https://subtitle.mainko.net/", "_blank")}>
+          <button className="btn-primary" onClick={() => openUrl("https://subtitle.mainko.net/")}>
             {t('btn_download')}
           </button>
         </div>
       </div>
     );
   }
+
+  const hasPgsSelected = Array.from(selectedTracks).some(idx => {
+    const tr = tracks.find(x => x.index === idx);
+    return tr && !tr.is_text_based && tr.codec_name?.includes("pgs");
+  });
 
   return (
     <div 
@@ -416,6 +468,21 @@ function App() {
                     <option value="vtt">webvtt</option>
                   </select>
                 </div>
+                
+                {hasPgsSelected && (
+                  <div className="format-selector-group ocr-group">
+                    <span className="save-label" style={{ color: "#a855f7" }}>OCR 언어</span>
+                    <select 
+                      className="select-format" 
+                      value={ocrLanguage} 
+                      onChange={(e) => setOcrLanguage(e.target.value)}
+                      style={{ borderColor: "#a855f7" }}
+                    >
+                      <option value="한국어">한국어 (Korean)</option>
+                      <option value="영어">영어 (English)</option>
+                    </select>
+                  </div>
+                )}
 
                 <div className="save-options">
                   <div className="radio-group">
@@ -439,12 +506,14 @@ function App() {
             
             <button 
               className={`btn-extract btn-primary action ${extracting ? 'btn-danger' : ''}`} 
-              onClick={extracting ? handleStopExtraction : startBatchExtraction}
-              disabled={(selectedTracks.size === 0 && !extracting) || stopping || isDone}
+              onClick={extracting ? handleStopExtraction : (isDone ? resetApp : startBatchExtraction)}
+              disabled={(selectedTracks.size === 0 && !extracting && !isDone) || stopping}
               style={extracting ? { background: '#ef4444' } : {}}
             >
               {extracting ? (
                  stopping ? <><Loader2 size={20} className="spinning" /> {t('btn_waiting')}</> : <><Square size={20} /> {t('btn_stop')}</>
+              ) : isDone ? (
+                 <>🔄 {t('btn_reset', { defaultValue: '새로운 작업 시작 (초기화)' })}</>
               ) : (
                  <><Download size={20} /> {t('btn_extract')}</>
               )}
@@ -471,22 +540,38 @@ function App() {
                   style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
                   onClick={async () => {
                     const target = config.ad_config?.target_url || "https://flowstate-timer.netlify.app/";
-                    const trackUrl = (config.ad_config?.cf_tracker_url || "") + "/click?ad_id=" + (config.ad_config?.ad_id || "flowstate_timer_v1") + "&target=" + encodeURIComponent(target);
+                    const tracker = config.ad_config?.cf_tracker_url;
+                    const trackUrl = tracker 
+                      ? tracker + "/click?ad_id=" + (config.ad_config?.ad_id || "flowstate_timer_v1") + "&target=" + encodeURIComponent(target)
+                      : target;
                     try {
                       await openUrl(trackUrl);
                     } catch (e) {
                       console.error("Overlay click error:", e);
-                      // Fallback
                       await openUrl(target);
                     }
                   }}
                 />
               </div>
             ) : config.ad_config.image_url ? (
-              <a href={(config.ad_config.cf_tracker_url || "") + "/click?ad_id=" + config.ad_config.ad_id + "&target=" + encodeURIComponent(config.ad_config.target_url)} 
-                 target="_blank" rel="noreferrer">
+              <div 
+                style={{ cursor: 'pointer' }}
+                onClick={async () => {
+                  const target = config.ad_config?.target_url || "https://flowstate-timer.netlify.app/";
+                  const tracker = config.ad_config?.cf_tracker_url;
+                  const trackUrl = tracker 
+                    ? tracker + "/click?ad_id=" + (config.ad_config?.ad_id || "flowstate_timer_v1") + "&target=" + encodeURIComponent(target)
+                    : target;
+                  try {
+                    await openUrl(trackUrl);
+                  } catch (e) {
+                    console.error("Banner click error:", e);
+                    await openUrl(target);
+                  }
+                }}
+              >
                 <img src={config.ad_config.image_url} alt="Advertisement" className="dynamic-banner" />
-              </a>
+              </div>
             ) : (
               <iframe 
                 src="/banner/index.html" 
@@ -529,8 +614,53 @@ function App() {
               </select>
             </div>
 
-            <button className="btn-link homepage-link" onClick={() => window.open("https://subtitle.mainko.net", "_blank")}>
+            <button className="btn-link homepage-link" onClick={() => openUrl("https://subtitle.mainko.net")}>
               {t('btn_visit_home')}
+            </button>
+
+            <button className="btn-link license-link" onClick={() => setShowLicenseModal(true)}>
+              {t('btn_license')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* License Modal */}
+      {showLicenseModal && (
+        <div className="modal-overlay" onClick={() => setShowLicenseModal(false)}>
+          <div className="modal-content license-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{t('license_title')}</h2>
+              <button className="btn-close" onClick={() => setShowLicenseModal(false)}><X size={20} /></button>
+            </div>
+            <div className="license-text-area">
+              <h3>Tesseract OCR</h3>
+              <pre>
+                Apache License Version 2.0, January 2004
+                http://www.apache.org/licenses/
+                Copyright (c) Ray Smith
+              </pre>
+              <hr />
+              <h3>FFmpeg</h3>
+              <pre>
+                Licensed under LGPL v2.1 or later.
+                http://www.ffmpeg.org/
+              </pre>
+              <hr />
+              <h3>Tauri</h3>
+              <pre>
+                MIT License / Apache License 2.0
+                Copyright (c) Tauri Programme
+              </pre>
+              <hr />
+              <h3>React</h3>
+              <pre>
+                MIT License
+                Copyright (c) Meta Platforms, Inc. and affiliates.
+              </pre>
+            </div>
+            <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => setShowLicenseModal(false)}>
+              {t('license_close')}
             </button>
           </div>
         </div>
@@ -553,8 +683,12 @@ function App() {
       {/* Toast Message */}
       {showToast && (
         <div className="toast-container animation-slide-up">
-           <div className="toast-content">
-             <p>{t('msg_extract_done', { success: lastResult.success, total: lastResult.total })}</p>
+           <div className={`toast-content ${isCancelled.current ? 'cancelled' : ''}`}>
+             <p>
+               {isCancelled.current 
+                 ? t('msg_extract_cancelled', { defaultValue: "사용자에 의해 추출이 중단되었습니다." })
+                 : t('msg_extract_done', { success: lastResult.success, total: lastResult.total })}
+             </p>
            </div>
         </div>
       )}

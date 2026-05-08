@@ -456,3 +456,36 @@
 - **문제점**: 화면의 주요 버튼(설정, 파일 선택, 자막 추출)에 React 컴포넌트용 Lucide 아이콘과 다국어 텍스트(i18n) 파일에 하드코딩된 이모지가 동시에 들어가 아이콘이 2개씩 보이는 현상.
 - **수정 과정 및 핵심 코드**: i18n.ts 파일에서 모든 언어 섹션(ko, en, ja, zh, hi)의 btn_settings, btn_select_file, btn_extract 값에서 이모지를 일괄 제거 반영.
 - **결과**: [테스트 필요]
+
+---
+
+### 2026-05-09: [기능 추가] 개발 모드 전용 샘플 데이터 로드 버튼 구현
+- **문제점**: 브라우저 서브에이전트(가상 브라우저)에서 로컬 파일 시스템의 File Picker를 조작할 수 없어, 자막 싱크 기능의 E2E 테스트가 불가능했음.
+- **수정 과정 및 핵심 코드**:
+  - frontend/src/App.tsx: `import.meta.env.DEV` 조건부로 [샘플 로드(DEV)] 버튼 추가. `loadSamples` 함수를 `fetch('/test_data/...')` 방식으로 변경하여 로컬 파일을 가상 File 객체로 변환 후 상태(State)에 주입.
+  - frontend/public/test_data/: 테스트용 샘플 자막 파일(test_ref.srt, test_target.smi) 배치. 10분 분량으로 경량화하여 테스트 속도 최적화.
+  - frontend/package.json: `build` 스크립트에 `node -e "require('fs').rmSync('public/test_data', ...)"` 추가하여 빌드 시 테스트 데이터 자동 삭제(이중 잠금).
+  - .gitignore: `frontend/public/test_data/` 추가하여 Git 추적 제외.
+  - .agent/rules/deployment_policy.md: '테스트 데이터 격리(Test Data Isolation)' 섹션 신규 추가.
+- **결과**: [테스트 필요]
+
+---
+
+### 2026-05-09: [버그 수정] 싱크 완료 후 결과 화면 크래시 (ReferenceError: tokenUsage)
+- **문제점**: 싱크가 100% 완료된 후 결과 화면을 렌더링할 때, JSX 코드에서 `tokenUsage` 변수를 참조하지만 해당 상태(State)가 App 컴포넌트 내에 선언되어 있지 않아 ReferenceError가 발생하며 화면이 하얗게 변하는(White Screen of Death) 크래시 발생.
+- **수정 과정 및 핵심 코드**:
+  - frontend/src/App.tsx: `const [tokenUsage, setTokenUsage] = useState<any>(null);` 상태 선언 추가.
+  - startSyncWithToken 함수 내: `if (response.data.usage) setTokenUsage(response.data.usage);` 코드 삽입으로 서버 응답의 토큰 사용량 데이터를 상태에 반영.
+  - handleReset 함수 내: `setTokenUsage(null);` 추가하여 초기화 시 토큰 사용량도 함께 리셋.
+- **결과**: [테스트 필요]
+
+---
+
+### 2026-05-09: [배포 보안] 서버 배포 시 테스트 데이터 유출 방지 정책 적용
+- **문제점**: 개발 편의를 위해 추가한 샘플 자막 파일과 테스트 버튼이 실제 배포 환경에 노출될 위험이 있었음.
+- **수정 과정 및 핵심 코드**:
+  - 1차 잠금(.gitignore): `frontend/public/test_data/` 경로를 Git 추적에서 제외하여 소스 저장소에 업로드 원천 차단.
+  - 2차 잠금(build script): `package.json`의 build 명령에 테스트 데이터 폴더 강제 삭제 로직을 선행 실행하도록 추가.
+  - 3차 잠금(코드 격리): UI의 테스트 버튼은 `import.meta.env.DEV` 조건문 내에서만 렌더링되어, Vite 프로덕션 빌드 시 Tree-shaking으로 완전히 제거됨.
+  - 정책 문서화: `.agent/rules/deployment_policy.md`에 '테스트 데이터 격리' 규칙을 명문화하여 향후 작업 시에도 동일 원칙 준수하도록 강제.
+- **결과**: [테스트 필요]

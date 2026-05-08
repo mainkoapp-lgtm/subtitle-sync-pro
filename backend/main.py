@@ -323,6 +323,22 @@ def get_priority_ad_link():
         logger.error(f"광고 프로바이더 로드 실패: {str(e)}")
         return {"status": "success", "link": default_link, "type": "link", "provider": "Error"}
 
+WEB_BANNERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_banners.json")
+
+@api_router.get("/web-banners")
+def get_web_banners():
+    """웹 브라우저 좌우 사이드바용 다이나믹 배너 ID 목록을 반환합니다."""
+    default_ids = [981842, 981849, 987286, 987287]
+    try:
+        if os.path.exists(WEB_BANNERS_FILE):
+            with open(WEB_BANNERS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return {"status": "success", "banner_ids": data.get("banner_ids", default_ids)}
+    except Exception as e:
+        logger.error(f"웹 배너 설정 로드 실패: {str(e)}")
+    
+    return {"status": "success", "banner_ids": default_ids}
+
 @api_router.get("/logs")
 def get_logs():
     if IS_PRODUCTION:

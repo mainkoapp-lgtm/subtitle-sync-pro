@@ -17,3 +17,6 @@ scratch/
 References/Guidelines/github_deployment_info.md
 *.bak
 *.tmp
+
+# Test data for development (do not deploy)
+frontend/public/test_data/

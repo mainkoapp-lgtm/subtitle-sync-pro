@@ -262,7 +262,11 @@ def align_subtitles(ref_subs: List[SubtitleBlock], target_subs: List[SubtitleBlo
             
     matched_count = sum(1 for r in results if r['matched'])
     match_rate = matched_count / total_ref if total_ref > 0 else 0
-    if match_rate < 0.3: raise ValueError(f"자막 매칭율이 너무 낮습니다 ({match_rate:.1%}). 최소 30% 필요.")
+    if match_rate < 0.3:
+        if not api_key:
+            raise ValueError(f"자막 매칭율이 너무 낮습니다 ({match_rate:.1%}). API 토큰(키)이 없거나 부족하여 정밀 매칭에 실패했습니다. 키를 입력하거나 광고 시청 후 다시 시도해 주세요.")
+        else:
+            raise ValueError(f"자막 매칭율이 매우 낮습니다 ({match_rate:.1%}). 영화가 일치하는지 또는 자막 내용이 맞는지 확인해 주세요.")
     
     if api_key:
         fill_res = fill_missing_subtitles(results, api_key, ai_model, progress_callback=progress_callback, check_cancel=check_cancel, target_lang=target_lang)

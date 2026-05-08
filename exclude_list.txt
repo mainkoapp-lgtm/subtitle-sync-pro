@@ -1,0 +1,8 @@
+backup
+node_modules
+venv
+.git
+.agent
+References
+dist
+build

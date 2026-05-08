@@ -1,6 +1,6 @@
 [package]
 name = "toolstauri_extractor"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -25,6 +25,10 @@ serde_json = "1"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tokio = { version = "1", features = ["full"] }
+pgs-rs = "0.1.1"
+image = "0.24"
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
 
 [profile.release]
 strip = true
