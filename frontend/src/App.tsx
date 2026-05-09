@@ -1,5 +1,6 @@
 /** [COMPLETED: 2026-04-02] API Key 가시화 및 로깅 마스킹 제거 완료 (임의 수정 금지) */
 /** [COMPLETED: 2026-04-22] 다국어 지원(i18n) 적용 완료 (임의 수정 금지) */
+/** [COMPLETED: 2026-05-10] 광고 클릭 확인 로직, 클릭몬 모달 연동, UI 구조 개선 완료 (임의 수정 금지) */
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Upload, CheckCircle, AlertCircle, RefreshCcw, Download, Copy, XCircle } from 'lucide-react';
@@ -94,7 +95,6 @@ function App() {
   const [showLogs, setShowLogs] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [displayLimit, setDisplayLimit] = useState(100);
-  const [fileMismatchWarning, setFileMismatchWarning] = useState<string | null>(null);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [guideTab, setGuideTab] = useState<'web' | 'ext'>('web');
@@ -110,6 +110,8 @@ function App() {
   const [adActionType, setAdActionType] = useState<'sync' | 'download' | null>(null);
   const [tokenUsage, setTokenUsage] = useState<any>(null);
   const [isVerifyingAd, setIsVerifyingAd] = useState(false);
+  // [완료] 광고 클릭 여부 확인 상태 (임의 수정 금지)
+  const [isAdClicked, setIsAdClicked] = useState(false);
   
   const defaultBannerIds = [981842, 981849, 987286, 987287];
   const [coupangBannerIds, setCoupangBannerIds] = useState<number[]>(defaultBannerIds);
@@ -183,6 +185,19 @@ function App() {
     };
     fetchAdConfig();
   }, []);
+
+  // [완료] 광고 iframe 클릭(blur) 감지 로직 (임의 수정 금지)
+  useEffect(() => {
+    if (!showAdModal) return;
+    const handleBlur = () => {
+      // If the active element is an iframe, user clicked inside it.
+      if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+        setIsAdClicked(true);
+      }
+    };
+    window.addEventListener('blur', handleBlur);
+    return () => window.removeEventListener('blur', handleBlur);
+  }, [showAdModal]);
 
   // 광고 차단기 감지 로직 개선 (v0.18: 감지 민감도 강화 및 테스트 모드 도입)
   const checkAdBlocker = async (): Promise<boolean> => {
@@ -353,40 +368,6 @@ function App() {
     trackVisit();
   }, []);
 
-  // 실시간 파일명 정합성 체크
-  useEffect(() => {
-    if (refFile && targetFile) {
-      const name1 = refFile.name.toLowerCase().replace('.srt', '');
-      const name2 = targetFile.name.toLowerCase().replace('.srt', '');
-      
-      // 영화 파일명에서 흔히 쓰이는 기술적 단어들은 제외 (순수 제목 비교를 위해)
-      const stopWords = ['1080p', '2160p', '4k', 'uhd', 'bluray', 'bdrip', 'brrip', 'x264', 'x265', 'hevc', 'h264', 'hdr', '10bit', 'dts', 'aac', 'ma', 'rarbg', 'fmx', 'psa', 'yify', 'yts'];
-      
-      const filterKeywords = (name: string) => 
-        name.split(/[\s\.\-\(\)\[\]]+/)
-            .filter(k => k.length >= 2 && !stopWords.includes(k));
-
-      const keywords1 = filterKeywords(name1);
-      const keywords2 = filterKeywords(name2);
-      
-      if (keywords1.length === 0 || keywords2.length === 0) return;
-
-      const common = keywords1.filter(k => keywords2.includes(k));
-      const similarity = common.length / Math.max(keywords1.length, keywords2.length);
-
-      if (similarity < 0.5) {
-        setFileMismatchWarning(t('mismatchWarning', { n: (similarity * 100).toFixed(0) }));
-        axios.post('/api/log-action', { 
-          message: `[파일명 부정합 경고 표시] 유사도: ${(similarity * 100).toFixed(1)}%` 
-        }).catch(() => {});
-      } else {
-        setFileMismatchWarning(null);
-      }
-    } else {
-      setFileMismatchWarning(null);
-    }
-  }, [refFile, targetFile]);
-
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -426,7 +407,6 @@ function App() {
     setTargetFile(null);
     setResults([]);
     setTokenUsage(null);
-    setFileMismatchWarning(null);
     try {
       // 서버 로그도 함께 초기화
       await axios.post('/api/clear-logs');
@@ -498,6 +478,7 @@ function App() {
 
     if (isProduction) {
       setAdActionType('sync');
+      setIsAdClicked(false);
       setShowAdModal(true);
       setAdStatus('loading');
 
@@ -626,6 +607,7 @@ function App() {
     
     if (isProduction) {
       setAdActionType('download');
+      setIsAdClicked(false);
       setShowAdModal(true);
       setAdStatus('loading');
       
@@ -772,14 +754,7 @@ function App() {
                 </div>
               </div>
 
-              {fileMismatchWarning && (
-                <div className="mismatch-warning-banner">
-                  <AlertCircle size={20} />
-                  <span>{fileMismatchWarning}</span>
-                </div>
-              )}
-
-              <div className="action-group">
+              <div className="action-group" style={{ marginTop: '0', marginBottom: '20px' }}>
                 <button className="sync-btn" onClick={handleSync} disabled={(!isDebug && (!refFile || !targetFile)) || syncing}>
                   {syncing ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -922,14 +897,21 @@ function App() {
               {adStatus === 'loading' ? (
                 <div className="ad-loading-spinner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6366f1' }}>
                   <RefreshCcw className="spinning" size={48} />
-                  <p style={{ marginTop: '15px' }}>{t('adTitleLoading')}</p>
+                   <p style={{ marginTop: '15px' }}>{t('adTitleLoading')}</p>
                 </div>
-              ) : adInfo?.link ? (
-                <iframe 
-                  src={adInfo.link} 
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  title="Reward Ad"
-                />
+              ) : adInfo?.link || adInfo?.type === 'clickmon' ? (
+                // [완료] 광고주 타입별(클릭몬 등) 동적 렌더링 로직 (임의 수정 금지)
+                adInfo?.type === 'clickmon' ? (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+                    <ClickmonBanner width="300" height="250" />
+                  </div>
+                ) : (
+                  <iframe 
+                    src={adInfo?.link} 
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    title="Reward Ad"
+                  />
+                )
               ) : (
                 <div className="ad-overlay-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444' }}>
                   <AlertCircle size={48} />
@@ -940,15 +922,23 @@ function App() {
             <div className="ad-modal-body" style={{ padding: '20px' }}>
               <h2 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>{t('adWatchRequired')}</h2>
               <p className="break-words" style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '20px' }}>
-                {t('adDisclaimer')}
+                {lang === 'ko' ? '계속 진행하기 위해서는 상단의 체크 박스(또는 광고 영역)를 클릭해 주세요.' : 'To continue, please click the checkbox (or ad area) above.'}
               </p>
               
               {(adStatus === 'idle' || adStatus === 'loading') && (
                 <div>
                   <button 
                     className="sync-btn" 
-                    disabled={isVerifyingAd || adStatus === 'loading'}
-                    style={{ width: '100%', justifyContent: 'center', background: '#6366f1', padding: '14px', fontSize: '1.05rem' }} 
+                    disabled={isVerifyingAd || adStatus === 'loading' || !isAdClicked}
+                    style={{ 
+                      width: '100%', 
+                      justifyContent: 'center', 
+                      background: (!isAdClicked || adStatus === 'loading' || isVerifyingAd) ? '#64748b' : '#6366f1', 
+                      cursor: (!isAdClicked || adStatus === 'loading' || isVerifyingAd) ? 'not-allowed' : 'pointer',
+                      padding: '14px', 
+                      fontSize: '1.05rem',
+                      opacity: (!isAdClicked || adStatus === 'loading' || isVerifyingAd) ? 0.7 : 1
+                    }} 
                     onClick={async () => {
                       try {
                         setIsVerifyingAd(true);
@@ -987,7 +977,7 @@ function App() {
                     }}
                   >
                     {isVerifyingAd ? (lang === 'ko' ? '광고 환경 검사 중...' : 'Verifying environment...') : 
-                     (adActionType === 'download' ? (lang === 'ko' ? '광고 확인 및 다운로드 시작' : 'Verify Ad & Start Download') : (lang === 'ko' ? '광고 시청 후 싱크 시작' : 'Sync after Ad'))}
+                     (adActionType === 'download' ? (lang === 'ko' ? '다운로드 시작' : 'Start Download') : (lang === 'ko' ? '자막 매칭 시작' : 'Start Subtitle Matching'))}
                   </button>
                 </div>
               )}
