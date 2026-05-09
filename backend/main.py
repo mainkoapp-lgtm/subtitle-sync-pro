@@ -364,8 +364,8 @@ async def clear_logs():
 def get_samples():
     """프론트엔드 테스트를 위해 내부 샘플 디렉토리의 자막 파일을 로드합니다."""
     sample_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample")
-    ref_path = os.path.join(sample_dir, "Terminator.Salvation(2009).2160p.UHD.BluRay.X265-IAMABLE.eng.srt")
-    target_path = os.path.join(sample_dir, "Terminator.Salvation.2009.DC.1080p.BluRay.x264.AC3-ONe.smi")
+    ref_path = os.path.join(sample_dir, "Terminator.Salvation(2009).2160p.UHD.BluRay.X265-IAMABLE.eng_참조자막.srt")
+    target_path = os.path.join(sample_dir, "Terminator.Salvation.2009.DC.1080p.BluRay.x264.AC3-ONe_한글_대상자막.smi")
     
     with open(ref_path, "r", encoding="utf-8", errors="ignore") as f:
         ref_content = f.read()

@@ -1,6 +1,6 @@
 /** [COMPLETED: 2026-04-02] API Key 가시화 및 로깅 마스킹 제거 완료 (임의 수정 금지) */
 /** [COMPLETED: 2026-04-22] 다국어 지원(i18n) 적용 완료 (임의 수정 금지) */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Upload, CheckCircle, AlertCircle, RefreshCcw, Download, Copy, XCircle } from 'lucide-react';
 
@@ -69,7 +69,7 @@ const AdSidebar = ({ side, platform, bannerId }: { side: 'left' | 'right', platf
 const MobileAdBanner = ({ id, bannerId, platform = 'coupang' }: { id?: number, bannerId?: number, platform?: 'coupang' | 'clickmon' }) => (
   <div className="mobile-ad-container glass-morphism">
     <span className="ad-label" style={{ fontSize: '9px', marginBottom: '8px' }}>Advertisement</span>
-    <div style={{ width: '100%', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
       {platform === 'coupang' ? (
         <CoupangDynamicBanner id={bannerId || id} width="320" height="100" template="carousel" />
       ) : (
@@ -109,6 +109,10 @@ function App() {
   const isDebug = new URLSearchParams(window.location.search).get('test') === '1';
   const [adActionType, setAdActionType] = useState<'sync' | 'download' | null>(null);
   const [tokenUsage, setTokenUsage] = useState<any>(null);
+  // [신규] 광고 팝업 활성화 상태 추적 (v0.18 개선)
+  const [isAdPopupActive, setIsAdPopupActive] = useState(false);
+  const adPopupRef = useRef<Window | null>(null);
+  
   const defaultBannerIds = [981842, 981849, 987286, 987287];
   const [coupangBannerIds, setCoupangBannerIds] = useState<number[]>(defaultBannerIds);
   // [완료] 쿠팡 배너 ID 랜덤 선택 로직 (임의 수정 금지)
@@ -138,6 +142,24 @@ function App() {
   const [leftPlatform, setLeftPlatform] = useState<'coupang' | 'clickmon'>(getRandomPlatform);
   const [rightPlatform, setRightPlatform] = useState<'coupang' | 'clickmon'>(getRandomPlatform);
   const [mobilePlatform, setMobilePlatform] = useState<'coupang' | 'clickmon'>(getRandomPlatform);
+
+  // [신규] 광고 팝업으로부터의 신호 수신 리스너
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // 보안을 위해 현재 도메인과 동일한지 확인 (또는 운영 환경 도메인)
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data.type === 'AD_BRIDGE_OPENED') {
+        console.log("[AdPopup] Bridge window opened and loaded.");
+      } else if (event.data.type === 'AD_BRIDGE_ACTIVE') {
+        console.log("[AdPopup] Bridge window survived 1.5s and is redirecting.");
+        setIsAdPopupActive(true);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   // 파이어베이스에서 광고 설정 가져오기 (배너 로테이션용)
   useEffect(() => {
@@ -180,7 +202,7 @@ function App() {
     fetchAdConfig();
   }, []);
 
-  // 광고 차단기 감지 로직 개선 (v0.17: 감지 민감도 강화 및 테스트 모드 도입)
+  // 광고 차단기 감지 로직 개선 (v0.18: 감지 민감도 강화 및 테스트 모드 도입)
   const checkAdBlocker = async (): Promise<boolean> => {
     // [추가] 테스트 파라미터 확인 (?adblock_test=1: 강제 차단, ?adblock_test=0: 강제 허용)
     const testParam = new URLSearchParams(window.location.search).get('adblock_test');
@@ -872,7 +894,7 @@ function App() {
       )}
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
-        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.17. All rights reserved.</p>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.18. All rights reserved.</p>
         <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
           ※ {t('footerDisclaimerTitle')}: {t('footerDisclaimer1')} 
           {t('footerDisclaimer2')}
@@ -921,27 +943,43 @@ function App() {
                         let adTriggered = false;
                         const { type, link } = adInfo;
                         
+                        // [v0.18 개선] 테스트 파라미터가 있다면 팝업에도 전달
+                        const testParam = new URLSearchParams(window.location.search).get('adblock_test');
+                        const adBaseUrl = `/ad-bridge.html?${type === 'clickmon' ? 'type=clickmon' : `target=${encodeURIComponent(link)}`}`;
+                        const adUrlWithTest = testParam ? `${adBaseUrl}&adblock_test=${testParam}` : adBaseUrl;
+
                         if (type === 'clickmon') {
-                          window.open('/ad-bridge.html?type=clickmon', '_blank', 'width=800,height=600');
-                          adTriggered = true;
+                          adPopupRef.current = window.open(adUrlWithTest, '_blank', 'width=800,height=600');
+                          adTriggered = adPopupRef.current !== null;
                         } else if (link) {
-                          window.open(`/ad-bridge.html?target=${encodeURIComponent(link)}`, '_blank', 'width=800,height=600');
-                          adTriggered = true;
+                          adPopupRef.current = window.open(adUrlWithTest, '_blank', 'width=800,height=600');
+                          adTriggered = adPopupRef.current !== null;
                         }
                         
                         if (!adTriggered) {
-                          showToast(t('adLoadFail'), 'error');
+                          showToast(lang === 'ko' ? '팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.' : 'Popup was blocked. Please allow popups in settings.', 'error');
                           return;
                         }
+
+                        setIsAdPopupActive(false); // 상태 초기화
 
                         // 사용자 인지를 위해 지연, 지연 중에 다시 한 번 광고 차단기를 검사하여 
                         // 새 탭이 차단당하는 동작(AdGuard 등)을 잡아냄
                         setTimeout(async () => {
                           try {
                             const isStillBlocked = await checkAdBlocker();
-                            if (isStillBlocked) {
+                            
+                            // [v0.18 개선] 광고 브릿지로부터 활성 신호(AD_BRIDGE_ACTIVE)가 왔는지까지 검증
+                            // 만약 AdGuard 등이 브릿지 페이지의 스크립트 실행을 막았다면 이 상태는 false임
+                            if (isStillBlocked || !isAdPopupActive) {
                               setShowAdModal(false);
-                              showToast(lang === 'ko' ? '광고 차단기가 켜져있어 진행이 취소되었습니다.' : 'Ad Blocker prevented the process.', 'error');
+                              const msg = lang === 'ko' 
+                                ? (isStillBlocked ? '광고 차단기가 켜져있어 진행이 취소되었습니다.' : '광고 창이 비정상적으로 종료되었거나 차단되었습니다.')
+                                : (isStillBlocked ? 'Ad Blocker prevented the process.' : 'Ad window was closed or blocked.');
+                              showToast(msg, 'error');
+                              
+                              // [추가] 팝업이 아직 살아있다면 닫기 시도 (선택 사항)
+                              if (adPopupRef.current) adPopupRef.current.close();
                               return;
                             }
 

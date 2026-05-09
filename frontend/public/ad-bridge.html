@@ -62,8 +62,59 @@
     const targetUrl = urlParams.get('target');
     const type = urlParams.get('type');
 
-    setTimeout(() => {
+    // [신규] 메인 창에 팝업이 성공적으로 열렸음을 보고
+    if (window.opener) {
+      window.opener.postMessage({ type: 'AD_BRIDGE_OPENED' }, window.location.origin);
+    }
+
+    async function validateAdAccess() {
+      // [신규] 테스트 파라미터 확인 (?adblock_test=1: 강제 차단, ?adblock_test=0: 강제 허용)
+      const testParam = urlParams.get('adblock_test');
+      if (testParam === '1') {
+        console.log("[AdPopup] Forced block by test parameter.");
+        return false;
+      }
+      if (testParam === '0') {
+        console.log("[AdPopup] Forced allow by test parameter.");
+        return true;
+      }
+
+      // 1. 단순 스크립트 실행 확인 (이미 도달함)
+      // 2. 외부 광고 도메인 접근성 테스트 (가장 확실한 방법)
+      let networkOk = false;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
+        // 광고 도메인 중 하나인 omg10.com의 파비콘이나 무해한 리소스 페치 시도
+        await fetch('https://omg10.com/favicon.ico', { mode: 'no-cors', signal: controller.signal });
+        clearTimeout(timeoutId);
+        networkOk = true;
+      } catch (e) {
+        console.warn("Ad domain access failed - likely blocked by AdGuard/uBlock");
+        networkOk = false;
+      }
+      return networkOk;
+    }
+
+    setTimeout(async () => {
+      const isAdAccessible = await validateAdAccess();
+      
+      if (!isAdAccessible) {
+        document.getElementById('warning').style.display = 'block';
+        document.getElementById('warning').innerHTML = `
+          ❗ <strong>광고 차단기(AdGuard 등)가 작동 중입니다.</strong><br>
+          현재 창에서도 광고 도메인 접근이 차단되어 작업을 계속할 수 없습니다.<br>
+          차단기를 완전히 끄거나 이 도메인을 허용하신 후 다시 시도해 주세요.
+        `;
+        return; // ACTIVE 신호를 보내지 않음으로써 메인 창에서 중단하게 함
+      }
+
       document.getElementById('warning').style.display = 'block';
+      
+      // [신규] 모든 검증 통과 후 리다이렉트 직전 보고
+      if (window.opener) {
+        window.opener.postMessage({ type: 'AD_BRIDGE_ACTIVE' }, window.location.origin);
+      }
       
       if (type === 'clickmon') {
         const c = 'https://tab2.clickmon.co.kr/pop/wp_ad_pop_js.php?PopAd=CM_M_1003067%7C%5E%7CCM_A_1156063%7C%5E%7CAdver_M=2&mon_di=';
