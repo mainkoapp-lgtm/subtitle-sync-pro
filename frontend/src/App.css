@@ -105,9 +105,21 @@ header {
 
 /* 광고 전용 프리미엄 모달 */
 .reward-ad-modal {
-  max-width: 480px !important;
+  width: 95%;
+  max-width: 550px; /* 기본 크기 */
   padding: 0 !important;
   overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s ease;
+}
+
+.reward-ad-modal.wide {
+  max-width: 850px;
+}
+
+.reward-ad-modal.compact {
+  max-width: 480px;
 }
 
 .ad-video-container {
@@ -131,6 +143,22 @@ header {
   font-size: 0.85rem;
   font-weight: 700;
   backdrop-filter: blur(4px);
+}
+
+.close-x-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  transform: scale(1.1);
+  transition: all 0.2s;
+}
+
+.countdown-number {
+  animation: scale-up 1s infinite;
+}
+
+@keyframes scale-up {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .ad-modal-body {

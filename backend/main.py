@@ -305,7 +305,18 @@ def get_priority_ad_link():
                     ad_type = selected.get("type", "link")
                     
                     if ad_type == "monetag":
-                        link = random.choice(MONETAG_LINKS)
+                        # 파이어베이스에서 최신 보상형 링크 리스트를 가져옴 (없으면 내장 리스트 사용)
+                        try:
+                            req = urllib.request.Request("https://subfast-manager.web.app/web_banners.json")
+                            with urllib.request.urlopen(req, timeout=3) as response:
+                                fb_config = json.loads(response.read().decode('utf-8'))
+                                links = fb_config.get("reward_links", MONETAG_LINKS)
+                                if not links or not isinstance(links, list):
+                                    links = MONETAG_LINKS
+                                link = random.choice(links)
+                        except Exception as e:
+                            logger.error(f"파이어베이스 설정 로드 실패: {str(e)}")
+                            link = random.choice(MONETAG_LINKS)
                     elif ad_type == "coupang":
                         link = get_coupang_random_link()
                     elif ad_type == "clickmon":

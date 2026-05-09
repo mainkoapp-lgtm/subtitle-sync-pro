@@ -109,9 +109,7 @@ function App() {
   const isDebug = new URLSearchParams(window.location.search).get('test') === '1';
   const [adActionType, setAdActionType] = useState<'sync' | 'download' | null>(null);
   const [tokenUsage, setTokenUsage] = useState<any>(null);
-  // [신규] 광고 팝업 활성화 상태 추적 (v0.18 개선)
-  const [isAdPopupActive, setIsAdPopupActive] = useState(false);
-  const adPopupRef = useRef<Window | null>(null);
+  const [isVerifyingAd, setIsVerifyingAd] = useState(false);
   
   const defaultBannerIds = [981842, 981849, 987286, 987287];
   const [coupangBannerIds, setCoupangBannerIds] = useState<number[]>(defaultBannerIds);
@@ -143,23 +141,7 @@ function App() {
   const [rightPlatform, setRightPlatform] = useState<'coupang' | 'clickmon'>(getRandomPlatform);
   const [mobilePlatform, setMobilePlatform] = useState<'coupang' | 'clickmon'>(getRandomPlatform);
 
-  // [신규] 광고 팝업으로부터의 신호 수신 리스너
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // 보안을 위해 현재 도메인과 동일한지 확인 (또는 운영 환경 도메인)
-      if (event.origin !== window.location.origin) return;
 
-      if (event.data.type === 'AD_BRIDGE_OPENED') {
-        console.log("[AdPopup] Bridge window opened and loaded.");
-      } else if (event.data.type === 'AD_BRIDGE_ACTIVE') {
-        console.log("[AdPopup] Bridge window survived 1.5s and is redirecting.");
-        setIsAdPopupActive(true);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
 
   // 파이어베이스에서 광고 설정 가져오기 (배너 로테이션용)
   useEffect(() => {
@@ -457,22 +439,19 @@ function App() {
 
   const loadSamples = async () => {
     try {
-      const [refRes, targetRes] = await Promise.all([
-        fetch('/test_data/test_ref.srt'),
-        fetch('/test_data/test_target.smi')
-      ]);
-      
-      if (!refRes.ok || !targetRes.ok) throw new Error("Sample files not found");
-
-      const refText = await refRes.text();
-      const targetText = await targetRes.text();
-
-      const refBlob = new Blob([refText], { type: 'text/plain' });
-      const targetBlob = new Blob([targetText], { type: 'text/plain' });
-      
-      setRefFile(new File([refBlob], "Terminator_Ref.srt", { type: 'text/plain' }));
-      setTargetFile(new File([targetBlob], "Terminator_Target.smi", { type: 'text/plain' }));
-      showToast(t('sampleUploadedToast'));
+      const response = await axios.get('/api/samples');
+      if (response.data.status === 'success') {
+        const { ref_name, ref_content, target_name, target_content } = response.data;
+        
+        const refBlob = new Blob([ref_content], { type: 'text/plain' });
+        const targetBlob = new Blob([target_content], { type: 'text/plain' });
+        
+        setRefFile(new File([refBlob], ref_name, { type: 'text/plain' }));
+        setTargetFile(new File([targetBlob], target_name, { type: 'text/plain' }));
+        showToast(t('sampleUploadedToast'));
+      } else {
+        throw new Error("Failed to load samples from server");
+      }
     } catch (e) {
       console.error(e);
       showToast(t('sampleLoadFailToast'), 'error');
@@ -907,103 +886,109 @@ function App() {
 
       {showAdModal && (
         <div className="modal-overlay">
-          <div className="guide-modal glass-morphism animate-in reward-ad-modal">
-            <div className="ad-video-container">
+          <div className={`guide-modal glass-morphism animate-in reward-ad-modal ${
+            isVerifyingAd ? 'compact' : 
+            adInfo?.type === 'coupang' ? 'wide' : 
+            adInfo?.type === 'clickmon' ? 'wide' : ''
+          }`} style={{ position: 'relative' }}>
+            <button 
+              className="close-x-btn" 
+              onClick={() => {
+                setShowAdModal(false);
+                setIsVerifyingAd(false);
+              }}
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: 'white',
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                zIndex: 10
+              }}
+            >
+              &times;
+            </button>
+
+            <div className="ad-video-container" style={{ height: '300px', backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
               {adStatus === 'loading' ? (
-                <div className="ad-loading-spinner">
-                  <RefreshCcw className="spinning" size={48} color="#6366f1" />
+                <div className="ad-loading-spinner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6366f1' }}>
+                  <RefreshCcw className="spinning" size={48} />
                   <p style={{ marginTop: '15px' }}>{t('adTitleLoading')}</p>
                 </div>
+              ) : adInfo?.link ? (
+                <iframe 
+                  src={adInfo.link} 
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  title="Reward Ad"
+                />
               ) : (
-                <>
-                  <img src="/ads/reward_preview.png" alt="Ad Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} />
-                  <div className="ad-overlay-content">
-                    <CheckCircle size={48} color="#10b981" />
-                    <p style={{ marginTop: '10px', fontSize: '1.1rem', fontWeight: 'bold' }}>{t('adTitleReady')}</p>
-                  </div>
-                </>
+                <div className="ad-overlay-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444' }}>
+                  <AlertCircle size={48} />
+                  <p style={{ marginTop: '10px' }}>광고 로드 실패</p>
+                </div>
               )}
             </div>
-            <div className="ad-modal-body">
-              <h2>{adInfo?.type === 'coupang' ? t('adCoupangTitle') : t('adWatchRequired')}</h2>
-              <p className="break-words" style={{ color: '#94a3b8', marginTop: '12px' }}>
-                {adInfo?.type === 'coupang' ? t('adCoupangDesc') : t('adDisclaimer')}
+            <div className="ad-modal-body" style={{ padding: '20px' }}>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>{t('adWatchRequired')}</h2>
+              <p className="break-words" style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '20px' }}>
+                {t('adDisclaimer')}
               </p>
               
-              {adStatus === 'idle' && (
-                <div style={{ marginTop: '24px' }}>
+              {(adStatus === 'idle' || adStatus === 'loading') && (
+                <div>
                   <button 
                     className="sync-btn" 
-                    style={{ width: '100%', justifyContent: 'center', background: adInfo?.type === 'coupang' ? '#e11d48' : '#6366f1' }} 
+                    disabled={isVerifyingAd || adStatus === 'loading'}
+                    style={{ width: '100%', justifyContent: 'center', background: '#6366f1', padding: '14px', fontSize: '1.05rem' }} 
                     onClick={async () => {
                       try {
-                        if (!adInfo) return;
+                        setIsVerifyingAd(true);
                         
-                        // [광고 로테이션 적용]
-                        let adTriggered = false;
-                        const { type, link } = adInfo;
+                        // 1.5초간 딥 검증 수행 (차단기 감지용)
+                        await new Promise(resolve => setTimeout(resolve, 1500));
                         
-                        // [v0.18 개선] 테스트 파라미터가 있다면 팝업에도 전달
-                        const testParam = new URLSearchParams(window.location.search).get('adblock_test');
-                        const adBaseUrl = `/ad-bridge.html?${type === 'clickmon' ? 'type=clickmon' : `target=${encodeURIComponent(link)}`}`;
-                        const adUrlWithTest = testParam ? `${adBaseUrl}&adblock_test=${testParam}` : adBaseUrl;
-
-                        if (type === 'clickmon') {
-                          adPopupRef.current = window.open(adUrlWithTest, '_blank', 'width=800,height=600');
-                          adTriggered = adPopupRef.current !== null;
-                        } else if (link) {
-                          adPopupRef.current = window.open(adUrlWithTest, '_blank', 'width=800,height=600');
-                          adTriggered = adPopupRef.current !== null;
-                        }
-                        
-                        if (!adTriggered) {
-                          showToast(lang === 'ko' ? '팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.' : 'Popup was blocked. Please allow popups in settings.', 'error');
+                        const isBlocked = await checkAdBlocker();
+                        if (isBlocked) {
+                          setIsVerifyingAd(false);
+                          setShowAdModal(false);
                           return;
                         }
 
-                        setIsAdPopupActive(false); // 상태 초기화
-
-                        // 사용자 인지를 위해 지연, 지연 중에 다시 한 번 광고 차단기를 검사하여 
-                        // 새 탭이 차단당하는 동작(AdGuard 등)을 잡아냄
-                        setTimeout(async () => {
-                          try {
-                            const isStillBlocked = await checkAdBlocker();
-                            
-                            // [v0.18 개선] 광고 브릿지로부터 활성 신호(AD_BRIDGE_ACTIVE)가 왔는지까지 검증
-                            // 만약 AdGuard 등이 브릿지 페이지의 스크립트 실행을 막았다면 이 상태는 false임
-                            if (isStillBlocked || !isAdPopupActive) {
-                              setShowAdModal(false);
-                              const msg = lang === 'ko' 
-                                ? (isStillBlocked ? '광고 차단기가 켜져있어 진행이 취소되었습니다.' : '광고 창이 비정상적으로 종료되었거나 차단되었습니다.')
-                                : (isStillBlocked ? 'Ad Blocker prevented the process.' : 'Ad window was closed or blocked.');
-                              showToast(msg, 'error');
-                              
-                              // [추가] 팝업이 아직 살아있다면 닫기 시도 (선택 사항)
-                              if (adPopupRef.current) adPopupRef.current.close();
-                              return;
+                        // 서버 티켓 요청 및 작업 시작
+                        try {
+                          const res = await axios.post('/api/reward/verify');
+                          if (res.data.status === 'success') {
+                            setShowAdModal(false);
+                            if (adActionType === 'sync') {
+                              startSyncWithToken(res.data.token);
+                            } else if (adActionType === 'download') {
+                              executeActualDownload();
                             }
-
-                            const res = await axios.post('/api/reward/verify');
-                            if (res.data.status === 'success') {
-                              setShowAdModal(false);
-                              if (adActionType === 'sync') {
-                                startSyncWithToken(res.data.token);
-                              } else if (adActionType === 'download') {
-                                executeActualDownload();
-                              }
-                            }
-                          } catch (verifyErr) {
-                            showToast(t('logFetchFailToast'), 'error');
                           }
-                        }, 2500);
+                        } catch (verifyErr) {
+                          showToast(t('logFetchFailToast'), 'error');
+                        }
+                        
                       } catch (e) {
+                        setIsVerifyingAd(false);
                         showToast(t('logFetchFailToast'), 'error');
+                      } finally {
+                        setIsVerifyingAd(false);
                       }
                     }}
                   >
-                    {adActionType === 'download' ? (lang === 'ko' ? '광고 확인 및 다운로드 시작' : 'Verify Ad & Start Download') : t('adCoupangTitle')}
+                    {isVerifyingAd ? (lang === 'ko' ? '광고 환경 검사 중...' : 'Verifying environment...') : 
+                     (adActionType === 'download' ? (lang === 'ko' ? '광고 확인 및 다운로드 시작' : 'Verify Ad & Start Download') : (lang === 'ko' ? '광고 시청 후 싱크 시작' : 'Sync after Ad'))}
                   </button>
-                  <p className="coupang-disclaimer" style={{ margin: '15px auto 0' }}>{t('adDisclaimer')}</p>
                 </div>
               )}
 
