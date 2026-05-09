@@ -873,7 +873,7 @@ function App() {
       )}
 
       <footer style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0' }}>
-        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.18. All rights reserved.</p>
+        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>&copy; 2026 Subtitle Sync Pro v0.19.0. All rights reserved.</p>
         <p style={{ fontSize: '0.75rem', color: '#475569', textAlign: 'center', maxWidth: '700px', margin: '0 20px' }}>
           ※ {t('footerDisclaimerTitle')}: {t('footerDisclaimer1')} 
           {t('footerDisclaimer2')}
