@@ -125,7 +125,7 @@ function App() {
         </div>
         <div className="feature-card glass-morphism">
           <h3>{t('extStep2')}</h3>
-          <p>문맥을 파악하는 Gemini 3.1 Flash-Lite 기반 번역으로 누락된 내용을 완벽하게 채워줍니다.</p>
+          <p>AI가 문맥을 분석하여 부족하거나 누락된 자막 내용을 자연스럽게 보완해줍니다.</p>
         </div>
         <div className="feature-card glass-morphism">
           <h3>PGS / OCR Extraction</h3>

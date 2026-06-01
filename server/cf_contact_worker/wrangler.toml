@@ -1,0 +1,16 @@
+name = "subtitle-contact-api"
+main = "index.js"
+compatibility_date = "2024-04-20"
+workers_dev = false
+# mainko.net 도메인이 속한 계정 (mainkoapp@gmail.com)
+account_id = "c98837d09e2c1919ee930b104a395e22"
+
+[vars]
+ENVIRONMENT = "production"
+# 메일을 수신할 Gmail
+RECEIVER_EMAIL = "mainkoapp@gmail.com"
+
+# 커스텀 도메인 라우팅 (contact-api.mainko.net → 이 Worker)
+routes = [
+  { pattern = "contact-api.mainko.net/*", zone_name = "mainko.net" }
+]
