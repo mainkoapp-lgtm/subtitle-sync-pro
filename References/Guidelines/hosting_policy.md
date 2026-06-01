@@ -6,7 +6,7 @@
 
 | 서비스 | 주요 무료 혜택 (무기한) | 제약 사항 및 특이점 |
 | :--- | :--- | :--- |
-| **Cloudflare Pages** 🏆 | - **메인 홈페이지 호스팅** (`subtitle.mainko.net`) | - **최종 선정**: 무제한 대역폭과 글로벌 속도 우위<br>- **관리 계정**: `mainkoapp@gmail.com` |
+| **Cloudflare Pages** 🏆 | - **메인 홈페이지 호스팅** (`subtitle.mainko.net`) | - **최종 선정**: 무제한 대역폭과 글로벌 속도 우위<br>- **관리 계정**: `misuni0313@gmail.com` |
 | **Firebase Hosting** | - **프로그램 리소스 & 배너** | - **용도**: 자막 추출기 앱 전용 이미지/배너/내부 공지 관리<br>- **프로젝트**: `subfast-manager` |
 | **Vercel** | - **미사용** | - 현재 프로젝트에서 호스팅 용도로 사용 안 함 |
 
@@ -81,6 +81,70 @@ AI 자막 매칭 엔진(`aligner.py`)을 구동하기 위한 서버 정책입니
 
 ---
 
+### 2026-06-02: [배포] 새 홈페이지(SubMaster 랜딩 페이지 v2) 서버 교체 배포 & 초경량 문의 텔레그램 연동 및 Render 서버 정리
+- **대상 파일**: [frontend/src/App.tsx](file:///D:/Project%20Temporary/subtitle/subtitle_development/frontend/src/App.tsx), [server/cf_contact_worker/](file:///D:/Project%20Temporary/subtitle/subtitle_development/server/cf_contact_worker/) (index.js, wrangler.toml)
+- **원인 및 문제점**: 기존 Subtitle Sync Pro 단순 UI에서 SubMaster 풀 랜딩 페이지로 교체 요청 및 "문의 / 협찬" 모달 메일 수신 요구 발생.
+- **수정 요약**: 
+  1. **텔레그램 백엔드 중계 서버 배포**: Cloudflare Workers(`subtitle-contact-api`)를 배포하여 클라이언트에서 텔레그램 Bot API로 직접 요청 시 발생하는 CORS 및 보안 토큰 노출 문제를 원천 해결.
+  2. **자격 증명 서버 격리**: 텔레그램 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`를 Cloudflare Worker Secret으로 안전하게 등록 및 격리하여 클라이언트 단에 절대 노출되지 않도록 조치.
+  3. **axios baseURL 충돌 방지**: 프런트엔드(`App.tsx`) 상단의 axios 전역 baseURL과의 충돌을 방지하기 위해 `fetch` API를 사용하여 Worker URL로만 안전하게 데이터를 전송하도록 구현.
+  4. **환경 변수 유실 및 보안 위험 제거**: `frontend/.env` 파일에서 민감 정보인 `VITE_TELEGRAM_*`을 완전히 제거하여 Git 및 빌드 결과물 유출 위협을 영구 차단.
+  5. **불필요한 구버전 서버 정리**: 더 이상 사용하지 않는 Render 백엔드 서버용 설정 파일인 `render_service.json`을 `backup/` 디렉토리로 안전하게 격리하고 프로젝트 루트에서 삭제.
+  6. **배포**: Git `master` 브랜치에 코드를 Push하여 Cloudflare Pages로 연동된 실서비스에 자동 빌드 및 배포 완료.
+- **최종 아키텍처**: `홈페이지 문의 작성 → Cloudflare Worker(자격증명 Secret 격리) → 텔레그램 Bot API → 텔레그램 실시간 수신`
+- **결과**: [성공] (실제 홈페이지 문의 모달을 통한 텔레그램 실시간 수신 확인 완료)
+
+### 2026-06-02: [보안] Cloudflare Worker CORS 도메인 제한 + 자체 도메인(contact-api.mainko.net) 연결
+- **대상 파일**: [server/cf_contact_worker/index.js](file:///D:/Project%20Temporary/subtitle/subtitle_development/server/cf_contact_worker/index.js), [frontend/src/App.tsx](file:///D:/Project%20Temporary/subtitle/subtitle_development/frontend/src/App.tsx)
+- **원인 및 문제점**: 
+  1. Worker CORS가 `*`(전체 허용)으로 설정되어 타 사이트에서 Worker URL을 도용하여 스팸 발송이 가능한 취약점 존재.
+  2. Worker URL(`subtitle-contact-api.misuni0313.workers.dev`)에 계정명(`misuni0313`)이 공개적으로 노출되는 개인정보 문제.
+- **수정 요약**: 
+  1. **CORS 도메인 제한**: `ALLOWED_ORIGINS` 배열을 정의하여 `https://subtitle.mainko.net`, 로컬 개발 환경(`localhost:5173/4173`)만 허용. 허용되지 않은 Origin의 preflight(OPTIONS) 및 본 요청(POST) 모두 **403 Forbidden**으로 차단.
+  2. **자체 도메인 연결**: Cloudflare `mainko.net` Zone에 CNAME 레코드 `contact-api → subtitle-contact-api.misuni0313.workers.dev` (Proxied) 등록. `App.tsx`의 fetch URL을 `https://contact-api.mainko.net`으로 교체하여 계정명 완전 은닉.
+- **최종 인프라**: `subtitle.mainko.net → https://contact-api.mainko.net (CNAME, Proxied) → subtitle-contact-api Worker → 텔레그램`
+- **결과**: [테스트 필요] (https://subtitle.mainko.net 문의 모달 → 텔레그램 수신 재확인 필요)
+
+---
+
+## 🚀 배포 및 텔레그램 연동 가이드 (차후 배포 작업 참고용)
+
+### 1. 프런트엔드 배포 (Cloudflare Pages)
+- **배포 방식**: GitHub `master` 브랜치에 코드 Push 시 Cloudflare Pages에서 자동으로 감지하여 빌드 및 배포를 수행합니다.
+- **배포 프로세스**:
+  1. 로컬에서 수정 및 테스트 완료.
+  2. `git add .` -> `git commit -m "commit message"` -> `git push origin master` 수행.
+  3. Cloudflare Pages 대시보드에서 빌드 진행 상황 확인 (통상 1~3분 소요).
+  4. 도메인(`https://subtitle.mainko.net`) 접속 후 업데이트 반영 사항 확인.
+
+### 2. 백엔드 중계 서버 배포 (Cloudflare Workers)
+- **위치**: `D:\Project Temporary\subtitle\subtitle_development\server\cf_contact_worker\`
+- **배포 준비 및 명령어**:
+  - `wrangler` CLI를 이용해 Cloudflare Workers 서버에 배포합니다.
+  - 배포 명령어: `npx wrangler deploy`
+- **텔레그램 Secret Key 관리 (보안 필수)**:
+  - 텔레그램 자격 증명(토큰, ID)은 절대 프런트엔드 코드나 `.env`에 평문으로 적어서는 안 됩니다.
+  - Worker Secret을 통해 서버 상에 격리되어야 합니다.
+  - **Secret 등록 명령어**:
+    ```bash
+    npx wrangler secret put TELEGRAM_BOT_TOKEN
+    # (프롬프트 입력창에 텔레그램 봇 토큰 입력)
+    
+    npx wrangler secret put TELEGRAM_CHAT_ID
+    # (프롬프트 입력창에 텔레그램 채팅방/채널 ID 입력)
+    ```
+  - 등록된 Secret은 Worker 코드 내에서 전역 바인딩되어 `env.TELEGRAM_BOT_TOKEN`, `env.TELEGRAM_CHAT_ID`로 안전하게 호출됩니다.
+
+### 3. 불필요한 백엔드 서버 정리 (Render 은퇴)
+- **정리 대상**: 이전 자막 매칭용 파이썬 백엔드 서버 (`subtitle-sync-api`)
+- **수행 사항**:
+  - 로컬 코드 레벨 정리: `render_service.json` 설정 파일을 `backup/` 디렉토리로 이동 및 루트에서 안전하게 삭제 완료.
+  - **차후 인프라 권장 정리 작업 (사용자 직접 수행 필요)**:
+    1. Render 대시보드(`https://dashboard.render.com`)에 접속하여 `subtitle-sync-api` 서비스를 **Suspend**(중지) 또는 **Delete**(삭제) 처리합니다.
+    2. UptimeRobot 등 외부 모니터링 핑 서비스에 등록된 구 백엔드 서버(Render URL) 모니터링 항목을 **Pause** 또는 **Delete** 처리하여 불필요한 호출과 메일 알림을 영구 중단합니다.
+
+---
+
 ### 2026-05-22: [인프라/역할조정] 백엔드 및 프런트엔드 서버 역할 축소 및 데스크톱 앱 일원화 배포
 - **문제점**: 무제한적인 웹 API 요청으로 인한 Render 프리 티어 한도 초과 및 서버 과부하를 예방하고, 효율적인 자원 배치를 위해 웹과 데스크톱의 인프라 역할을 명확히 재정의해야 함.
 - **수정 과정 및 핵심 내용**:
@@ -89,3 +153,17 @@ AI 자막 매칭 엔진(`aligner.py`)을 구동하기 위한 서버 정책입니
   - **배포 방식**: Cloudflare Pages의 자동 빌드/배포 환경 유지, Dropbox 직링크를 통한 데스크톱(v0.2.6) 다운로드 배포 체계 연동.
 - **결과**: [성공]
 
+### 2026-06-02: [계정/정보정정] Cloudflare 메인 공식 계정 및 R2 소유 계정 정정
+- **대상 파일**: [hosting_policy.md](file:///D:/Project%20Temporary/subtitle/subtitle_development/References/Guidelines/hosting_policy.md) (섹션: `Cloudflare Pages 관리 계정`), [.env](file:///D:/Project%20Temporary/subtitle/subtitle_development/.env)
+- **원인 및 문제점**: Cloudflare 메인 계정을 깃허브 계정인 `mainkoapp@gmail.com`으로 잘못 오인하여 지침서 및 설정 주석에 잘못 반영되어 있었음. 실제 관리 대장 확인을 통해 `misuni0313@gmail.com`이 메인 Cloudflare 실서비스 운영 및 R2 계정임을 교차 검증함.
+- **수정 요약**: `hosting_policy.md` 가이드라인 문서와 `.env` 설정 내 이메일 설명 주석의 Cloudflare 계정 역할을 `misuni0313@gmail.com`이 메인 실서비스 및 R2 소유 계정이 되도록 모두 정상 정정 완료함.
+- **결과**: [성공]
+
+### 2026-06-02: [배포/자동화] 영구 고정 GitHub Releases 배포 체계 연동 및 홈페이지 다운로드 링크 교체
+- **대상 파일**: [App.tsx](file:///D:/Project%20Temporary/subtitle/subtitle_development/frontend/src/App.tsx) (함수: `downloadApp`)
+- **원인 및 문제점**: 드롭박스(Dropbox)를 통한 수동 업데이트는 매 버전 업로드 시 다운로드 링크가 깨지거나 매번 홈페이지 코드를 고친 후 재배포해야 하는 극심한 번거로움이 존재함. 또한 Firebase Storage는 무료 1GB 일일 트래픽 초과 시 먹통이 되는 한계가 있음.
+- **수정 요약**: 
+  1. **무제한 대역폭 배포망 확보**: 깃허브 공식 정책 상 Releases 다운로드 트래픽은 100% 무제한 무료이고 초과 요금이 청구되지 않음을 공식 홈페이지를 통해 교차 검증 및 확정.
+  2. **GitHub Releases 릴리스 생성 및 에셋 업로드**: `mainkoapp-lgtm/subtitle-sync-pro` 공식 레포에 `v0.2.6` 릴리스를 생성하고 191MB의 `SubMaster.zip` 빌드 아웃풋을 무사히 업로드 완료.
+  3. **영구 최신버전 고정 연동**: `App.tsx` 내의 수동 Dropbox 링크를 영구 최신 버전을 다운로드하게 고정되는 `https://github.com/mainkoapp-lgtm/subtitle-sync-pro/releases/latest/download/SubMaster.zip` 주소로 완벽히 리다이렉트 교체.
+- **결과**: [테스트 필요]

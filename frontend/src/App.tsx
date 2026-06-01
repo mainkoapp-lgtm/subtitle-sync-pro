@@ -49,7 +49,7 @@ function App() {
   };
 
   const downloadApp = () => {
-    window.open('https://www.dropbox.com/scl/fi/0ivftkpsg4nul9zjj1hvs/v0.2.2.zip?rlkey=mrv3eqipsphm336df0vlt6czx&st=m44313b4&dl=1');
+    window.open('https://github.com/mainkoapp-lgtm/subtitle-sync-pro/releases/latest/download/SubMaster.zip');
   };
 
   const handleContactSubmit = async (e: React.FormEvent) => {
