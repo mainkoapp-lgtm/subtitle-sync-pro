@@ -62,7 +62,7 @@ function App() {
     try {
       // [보안] 텔레그램 자격증명은 Cloudflare Worker Secret에 완전히 격리됨
       // 프런트엔드는 Worker URL로 문의 내용만 전달하고, 텔레그램 발송은 서버에서 처리
-      const response = await fetch('https://contact-api.mainko.net', {
+      const response = await fetch('https://subtitle-contact-api.misuni0313.workers.dev', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
