@@ -61,13 +61,23 @@ function App() {
     }
     setSending(true);
     try {
-      // Cloudflare Workers 이메일 발송 API 연동
-      await axios.post('https://subtitle-contact-api.misuni0313.workers.dev', {
-        name: contactForm.name,
-        email: contactForm.email,
-        type: contactForm.type,
-        message: contactForm.message
+      // axios 대신 브라우저 내장 fetch API를 직접 사용하여 baseUrl 설정과의 충돌을 영구 박멸
+      const response = await fetch('https://subtitle-contact-api.misuni0313.workers.dev', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: contactForm.name,
+          email: contactForm.email,
+          type: contactForm.type,
+          message: contactForm.message
+        })
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to send mail through workers API');
+      }
 
       showToast(t('contactSuccess'));
       setShowContact(false);
