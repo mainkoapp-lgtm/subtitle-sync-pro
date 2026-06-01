@@ -1,4 +1,4 @@
-// [최신 상태] App v0.2.6 | Engine v0.7.6 | 마지막 동기화: 2026-06-02 06:27:00
+// [최신 상태] App v0.2.6 | Engine v0.7.6 | 마지막 동기화: 2026-06-02 06:42:00
 // 마지막 동기화: 2026-06-02
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -56,39 +56,42 @@ function App() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactForm.name || !contactForm.email || !contactForm.message) {
-      showToast(t('contactFail'), 'error'); // i18n 문구로 대체
+      showToast(t('contactFail'), 'error');
       return;
     }
     setSending(true);
     try {
-      // axios 대신 브라우저 내장 fetch API를 직접 사용하여 baseUrl 설정과의 충돌을 영구 박멸
-      const response = await fetch('https://subtitle-contact-api.misuni0313.workers.dev', {
+      // Telegram Bot 연동 - axios baseURL 충돌 방지를 위해 표준 fetch API 사용
+      const botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
+      const chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+
+      if (!botToken || !chatId) {
+        throw new Error('Telegram credentials not configured');
+      }
+
+      const text = `[SubMaster 문의/협찬]\n이름: ${contactForm.name}\n이메일: ${contactForm.email}\n유형: ${contactForm.type}\n메시지: ${contactForm.message}`;
+
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: contactForm.name,
-          email: contactForm.email,
-          type: contactForm.type,
-          message: contactForm.message
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send mail through workers API');
+        throw new Error('Telegram API request failed');
       }
 
       showToast(t('contactSuccess'));
       setShowContact(false);
       setContactForm({ name: '', email: '', type: t('contactTypeGeneral'), message: '' });
     } catch (e) {
-      console.error("Mail Send Error:", e);
+      console.error('Telegram Send Error:', e);
       showToast(t('contactFail'), 'error');
     } finally {
       setSending(false);
     }
   };
+
 
   return (
     <div className="container">
