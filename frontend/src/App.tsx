@@ -1,5 +1,5 @@
-// [최신 상태] App v0.2.6 | Engine v0.7.6 | 마지막 동기화: 2026-05-20
-// 마지막 동기화: 2026-05-20
+// [최신 상태] App v0.2.6 | Engine v0.7.6 | 마지막 동기화: 2026-06-02 06:27:00
+// 마지막 동기화: 2026-06-02
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useTranslation } from './i18n';
@@ -61,8 +61,8 @@ function App() {
     }
     setSending(true);
     try {
-      // 텔레그램 연동 대신, 이미 안전하게 구축된 백엔드 메일 전송 API(/api/contact) 연동
-      await axios.post('/api/contact', {
+      // Cloudflare Workers 이메일 발송 API 연동
+      await axios.post('https://subtitle-contact-api.misuni0313.workers.dev', {
         name: contactForm.name,
         email: contactForm.email,
         type: contactForm.type,
