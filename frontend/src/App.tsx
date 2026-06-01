@@ -1,4 +1,4 @@
-// [최신 상태] App v0.2.6 | Engine v0.7.6 | 마지막 동기화: 2026-06-02 06:42:00
+// [최신 상태] App v0.2.6 | Engine v0.7.6 | 마지막 동기화: 2026-06-02 06:45:00
 // 마지막 동기화: 2026-06-02
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -30,7 +30,6 @@ function App() {
   const [heroImg, setHeroImg] = useState('/images/heroes/hero_4.png');
   
   useEffect(() => {
-    // 1~4 사이의 랜덤 숫자를 생성하여 이미지 선택
     const randomNum = Math.floor(Math.random() * 4) + 1;
     setHeroImg(`/images/heroes/hero_${randomNum}.png`);
   }, []);
@@ -61,37 +60,33 @@ function App() {
     }
     setSending(true);
     try {
-      // Telegram Bot 연동 - axios baseURL 충돌 방지를 위해 표준 fetch API 사용
-      const botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
-      const chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID;
-
-      if (!botToken || !chatId) {
-        throw new Error('Telegram credentials not configured');
-      }
-
-      const text = `[SubMaster 문의/협찬]\n이름: ${contactForm.name}\n이메일: ${contactForm.email}\n유형: ${contactForm.type}\n메시지: ${contactForm.message}`;
-
-      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      // [보안] 텔레그램 자격증명은 Cloudflare Worker Secret에 완전히 격리됨
+      // 프런트엔드는 Worker URL로 문의 내용만 전달하고, 텔레그램 발송은 서버에서 처리
+      const response = await fetch('https://subtitle-contact-api.misuni0313.workers.dev', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text })
+        body: JSON.stringify({
+          name: contactForm.name,
+          email: contactForm.email,
+          type: contactForm.type,
+          message: contactForm.message,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Telegram API request failed');
+        throw new Error('Worker API request failed');
       }
 
       showToast(t('contactSuccess'));
       setShowContact(false);
       setContactForm({ name: '', email: '', type: t('contactTypeGeneral'), message: '' });
     } catch (e) {
-      console.error('Telegram Send Error:', e);
+      console.error('Contact Send Error:', e);
       showToast(t('contactFail'), 'error');
     } finally {
       setSending(false);
     }
   };
-
 
   return (
     <div className="container">
