@@ -6,7 +6,7 @@
 
 | 서비스 | 주요 무료 혜택 (무기한) | 제약 사항 및 특이점 |
 | :--- | :--- | :--- |
-| **Cloudflare Pages** 🏆 | - **메인 홈페이지 호스팅** (`mainko.net`) | - **최종 선정**: 무제한 대역폭과 글로벌 속도 우위<br>- **관리 계정**: `mainkoapp@gmail.com` |
+| **Cloudflare Pages** 🏆 | - **메인 홈페이지 호스팅** (`subtitle.mainko.net`) | - **최종 선정**: 무제한 대역폭과 글로벌 속도 우위<br>- **관리 계정**: `mainkoapp@gmail.com` |
 | **Firebase Hosting** | - **프로그램 리소스 & 배너** | - **용도**: 자막 추출기 앱 전용 이미지/배너/내부 공지 관리<br>- **프로젝트**: `subfast-manager` |
 | **Vercel** | - **미사용** | - 현재 프로젝트에서 호스팅 용도로 사용 안 함 |
 
@@ -28,22 +28,22 @@ AI 자막 매칭 엔진(`aligner.py`)을 구동하기 위한 서버 정책입니
 3. **API Tunneling**: 프런트엔드에서 백엔드 엔진을 호출할 때 도메인 마스킹을 적용하여 실제 서버 주소 노출을 최소화한다.
 
 ## 💡 최종 배포 확정 전략 (Verified)
-- **Frontend**: **Cloudflare Pages** ([https://mainko.net](https://mainko.net))
+- **Frontend**: **Cloudflare Pages / Firebase Hosting** ([https://subtitle.mainko.net](https://subtitle.mainko.net))
 - **Backend/Engine**: **Render** (`subtitle-sync-api` 서비스)
 - **Trackers**: **Cloudflare Workers** (`ad-tracker` - 광고 클릭 로그)
 - **Data/Program Resources**: **Firebase** (`subfast-manager` - 배너 및 업데이트 파일)
 - **Extractor App**: **Tauri (Main)** / **Python (Legacy/Backup)**
 - **Ad Platform**: **Monetag** / **Coupang Partners** (계정 보유 및 전략 수립 완료)
 
-*최종 확인 일자: 2026-04-18*
+*최종 확인 일자: 2026-06-02*
 
 ---
 
 ### 2026-04-22: [서버/호스팅] 전체 인프라 운영 현황 전수 확인 및 업데이트
 - **문제점**: 이전 정보에서 Vercel 사용 여부 및 서비스별 역할 분담(홈페이지 vs 프로그램 리소스)이 불분명했음. API 직접 호출을 통해 실제 운영 상태를 재검증함.
 - **수정 과정 및 핵심 코드**: 
-  - **Vercel**: 미사용 확인 (서비스 목록에서 비활성화 처리)
-  - **Cloudflare**: 홈페이지(`mainko.net`) 호스팅 및 광고 트래커 워커 담당 확인. (관리 계정: `mainkoapp`, `misuni0313`)
+   - **Vercel**: 미사용 확인 (서비스 목록에서 비활성화 처리)
+   - **Cloudflare/Firebase**: 홈페이지(`subtitle.mainko.net`) 호스팅 및 광고 트래커 워커 담당 확인. (관리 계정: `mainkoapp`, `misuni0313`)
   - **Render**: 파이썬 백엔드 API 서버(`subtitle-sync-api`) 구동 확인. (계정: `misuni0313`)
   - **Firebase**: 자막 추출기 프로그램 전용 리소스 및 배너 호스팅(`subfast-manager`) 담당 확인. (계정: `misuni0313`)
 - **결과**: [성공] (실제 서버 인스턴스 정보와 일치함 확인)
@@ -77,5 +77,15 @@ AI 자막 매칭 엔진(`aligner.py`)을 구동하기 위한 서버 정책입니
     - `<meta name="naver-site-verification" content="519c7082a42b092e9cffeeed570322821c548231" />` 추가.
     - `<meta name="description" content="Subtitle Sync Pro는 영상과 맞지 않는 자막 싱크를 인공지능(AI) 기술로 완벽하게 해결합니다. 자막 밀림 현상, 싱크가 맞지 않는 자막 파일을 업로드만 하세요. 한국어, 영어 등 다국어 자막 싱크 맞추기를 가장 빠르고 정확하게 지원합니다. 지금 바로 무료로 자막 싱크를 복구해보세요." />` 추가 (자막 싱크 맞추기, 자막 밀림 등 핵심 키워드 포함, 455자 이하 준수).
   - GitHub `master` 브랜치 푸시를 통한 자동 배포 완료.
+- **결과**: [성공]
+
+---
+
+### 2026-05-22: [인프라/역할조정] 백엔드 및 프런트엔드 서버 역할 축소 및 데스크톱 앱 일원화 배포
+- **문제점**: 무제한적인 웹 API 요청으로 인한 Render 프리 티어 한도 초과 및 서버 과부하를 예방하고, 효율적인 자원 배치를 위해 웹과 데스크톱의 인프라 역할을 명확히 재정의해야 함.
+- **수정 과정 및 핵심 내용**:
+  - **백엔드(Render)**: `/sync` 엔진 연동을 제거하고 경량 자막 유틸 API (`backend/main.py`)로 역할을 축소하여 750시간/월 무료 티어 내 안정적 운영 보장.
+  - **프런트엔드(Cloudflare Pages)**: 브라우저 자막 싱크 웹앱에서 데스크톱 자막 솔루션 **SubMaster**의 공식 홈페이지/랜딩 페이지로 전격 리브랜딩 및 전환 배포 완료.
+  - **배포 방식**: Cloudflare Pages의 자동 빌드/배포 환경 유지, Dropbox 직링크를 통한 데스크톱(v0.2.6) 다운로드 배포 체계 연동.
 - **결과**: [성공]
 
