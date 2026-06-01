@@ -1401,4 +1401,16 @@
 - **수정 요약**: 텔레그램 직접 전송 API를 전면 걷어내고, 보안 환경 변수와 메일 발송 로직이 안전하게 구축된 백엔드 API인 `/api/contact` 호출(이름, 이메일, 유형, 메시지 수집)로 연동 교체함.
 - **결과**: [테스트 필요]
 
+---
+
+### 2026-06-02: 홈페이지 도메인 정보(subtitle.mainko.net) 바로잡기 및 루트 빌드 스크립트 보완
+- **대상 파일**: 
+  - [hosting_policy.md](file:///d:/Project%20Temporary/subtitle/subtitle_development/References/Guidelines/hosting_policy.md) (도메인 정정)
+  - [package.json](file:///d:/Project%20Temporary/subtitle/subtitle_development/package.json) (루트 빌드 스크립트 보강)
+- **원인 및 문제점**: 자막 싱크 프로 웹 서비스의 실제 운영 도메인은 `https://subtitle.mainko.net` 이었으나 회사 홈페이지 도메인인 `mainko.net`으로 잘못 기재되어 있었으며, 루트 `package.json`에 빌드 스크립트가 부재하여 Cloudflare Pages 등 자동 빌드 배포 플랫폼에서 프런트엔드 자동 빌드가 실패하는 배포 결손 현상 발생.
+- **수정 요약**:
+  1. `hosting_policy.md`에 기재된 홈페이지 도메인 오기들을 `subtitle.mainko.net`으로 일제히 바로잡음.
+  2. 루트 `package.json`에 `"build": "npm --prefix frontend run build"` 스크립트를 수립하여 자동 배포 파이프라인 무결성 확보.
+- **결과**: [성공] (GitHub 원격 푸시를 통해 빌드 정상 트리거 완료)
+
 
