@@ -166,4 +166,4 @@ AI 자막 매칭 엔진(`aligner.py`)을 구동하기 위한 서버 정책입니
   1. **무제한 대역폭 배포망 확보**: 깃허브 공식 정책 상 Releases 다운로드 트래픽은 100% 무제한 무료이고 초과 요금이 청구되지 않음을 공식 홈페이지를 통해 교차 검증 및 확정.
   2. **GitHub Releases 릴리스 생성 및 에셋 업로드**: `mainkoapp-lgtm/subtitle-sync-pro` 공식 레포에 `v0.2.6` 릴리스를 생성하고 191MB의 `SubMaster.zip` 빌드 아웃풋을 무사히 업로드 완료.
   3. **영구 최신버전 고정 연동**: `App.tsx` 내의 수동 Dropbox 링크를 영구 최신 버전을 다운로드하게 고정되는 `https://github.com/mainkoapp-lgtm/subtitle-sync-pro/releases/latest/download/SubMaster.zip` 주소로 완벽히 리다이렉트 교체.
-- **결과**: [테스트 필요]
+- **결과**: [성공]
